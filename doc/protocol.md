@@ -42,7 +42,8 @@ hashing algorithm instead of SHA-512.
 The C++ implementation doesn't appear to take endianness into account. This
 means that the encoding of integers is platform-dependent. The platforms that
 Nano currently runs on are all little endian, so we'll assume that all integers
-are encoded in little endian for now.
+are encoded in little endian for now. The exception to this rule are balances,
+those are encoded in big endian.
 
 Every packet starts with a header.
 
@@ -277,4 +278,5 @@ the threshold is exceeded.
 
 ### Balance
 
-Balances are represented as a 128-bit unsigned integer.
+Balances are represented as a 128-bit unsigned integer. They are encoded in big
+endian.
