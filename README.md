@@ -1,4 +1,4 @@
-# gonano
+# gonano [![Build Status](https://travis-ci.org/alexbakker/gonano.svg?branch=master)](https://travis-ci.org/alexbakker/gonano)
 
 __gonano__ is a __WIP__ implementation of the Nano cryptocurrency in Go.
 
@@ -20,5 +20,5 @@ The goals of this project are to:
 
 ## License
 
-The source code of this project is licensed under MIT. The protocol
-documentation is licensed under CC BY-SA.
+The source code of this project is licensed under the [MIT license](LICENSE). The
+protocol documentation is licensed under [CC BY-SA](doc/LICENSE).
