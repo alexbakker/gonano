@@ -2,6 +2,7 @@ language: go
 
 go:
   - 1.5
+  - stable
   - tip
 
 install: true
