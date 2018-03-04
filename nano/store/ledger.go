@@ -56,8 +56,8 @@ func (l *Ledger) addOpenBlock(txn StoreTxn, blk *block.OpenBlock) error {
 func (l *Ledger) addSendBlock(txn StoreTxn, blk *block.SendBlock) error {
 	hash := blk.Hash()
 
-	// is the hash of this block a frontier?
-	frontier, err := txn.GetFrontier(hash)
+	// is the hash of the previous block a frontier?
+	frontier, err := txn.GetFrontier(blk.Root())
 	if err != nil {
 		// todo: this indicates a fork!
 		return err
@@ -73,10 +73,27 @@ func (l *Ledger) addSendBlock(txn StoreTxn, blk *block.SendBlock) error {
 }
 
 func (l *Ledger) addReceiveBlock(txn StoreTxn, blk *block.ReceiveBlock) error {
+	//hash := blk.Hash()
+
 	return nil
 }
 
 func (l *Ledger) addChangeBlock(txn StoreTxn, blk *block.ChangeBlock) error {
+	hash := blk.Hash()
+
+	// is the hash of the previous block a frontier?
+	frontier, err := txn.GetFrontier(blk.Root())
+	if err != nil {
+		// todo: this indicates a fork!
+		return err
+	}
+
+	// is the signature of this block valid?
+	signature := blk.Signature()
+	if !frontier.Address.Verify(hash[:], signature[:]) {
+		return errors.New("bad block signature")
+	}
+
 	return nil
 }
 

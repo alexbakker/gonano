@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	workSize      = 8
 	WorkThreshold = 0xffffffc000000000
 )
 
@@ -22,9 +23,9 @@ type Worker struct {
 
 // String implements the fmt.Stringer interface.
 func (w Work) String() string {
-	bytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(bytes, uint64(w))
-	return hex.EncodeToString(bytes)
+	var bytes [workSize]byte
+	binary.BigEndian.PutUint64(bytes[:], uint64(w))
+	return hex.EncodeToString(bytes[:])
 }
 
 func (w Work) Valid(root Hash) bool {
@@ -32,7 +33,7 @@ func (w Work) Valid(root Hash) bool {
 }
 
 func NewWorker(work Work, root Hash) *Worker {
-	hash, err := blake2b.New(8, nil)
+	hash, err := blake2b.New(workSize, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -45,11 +46,11 @@ func NewWorker(work Work, root Hash) *Worker {
 }
 
 func (w *Worker) Valid() bool {
-	workBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(workBytes, uint64(w.work))
+	var workBytes [workSize]byte
+	binary.LittleEndian.PutUint64(workBytes[:], uint64(w.work))
 
 	w.hash.Reset()
-	w.hash.Write(workBytes)
+	w.hash.Write(workBytes[:])
 	w.hash.Write(w.root[:])
 
 	sum := w.hash.Sum(nil)

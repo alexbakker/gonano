@@ -181,10 +181,10 @@ func (n *Node) processFrontier(frontier *block.Frontier) {
 }
 
 func (n *Node) processBlocks(blocks []block.Block) {
-	if err := n.ledger.AddBlocks(blocks); err != nil {
+	/*if err := n.ledger.AddBlocks(blocks); err != nil {
 		fmt.Printf("error processing blocks: %s\n", err)
 		return
-	}
+	}*/
 
 	for _, blk := range blocks {
 		fmt.Printf("block (%s) %s: %+v\n", block.Name(blk.ID()), blk.Hash(), blk)
@@ -225,7 +225,7 @@ func (n *Node) sendPacket(addr *net.UDPAddr, packet proto.Packet) error {
 	_, err = n.udpConn.WriteToUDP(bytes, addr)
 
 	// todo: remove
-	fmt.Printf("send [%s]: %s (%d bytes)\n", addr.String(), proto.Name(packet.ID()), len(bytes))
+	fmt.Printf("send (%s): %s (%d bytes)\n", addr.String(), proto.Name(packet.ID()), len(bytes))
 
 	return err
 }

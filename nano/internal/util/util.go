@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"time"
@@ -29,4 +30,26 @@ func DialTCP(addr *net.TCPAddr, timeout time.Duration) (*net.TCPConn, error) {
 		return nil, err
 	}
 	return conn.(*net.TCPConn), nil
+}
+
+func MustDecodeHex(s string) []byte {
+	bytes, err := hex.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	return bytes
+}
+
+func MustDecodeHex32(s string) [32]byte {
+	var res [32]byte
+	bytes := MustDecodeHex(s)
+	copy(res[:], bytes)
+	return res
+}
+
+func MustDecodeHex64(s string) [64]byte {
+	var res [64]byte
+	bytes := MustDecodeHex(s)
+	copy(res[:], bytes)
+	return res
 }
