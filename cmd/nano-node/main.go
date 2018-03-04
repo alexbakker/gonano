@@ -46,10 +46,10 @@ func main() {
 	}
 
 	// create gonano config directory
-	prepareDir()
+	dir := prepareDir()
 
 	// open the database
-	db, err := store.NewBadgerStore("/home/alex/.config/gonano/db")
+	db, err := store.NewBadgerStore(dir)
 	if err != nil {
 		panic(err)
 	}
