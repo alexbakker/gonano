@@ -149,7 +149,7 @@ func (n *Node) syncFontiers() error {
 
 		syncer := NewFrontierSyncer(n.processFrontier)
 		if err = Sync(syncer, peer); err == nil {
-			/*syncer := NewBulkPullSyncer(n.processBlocks, n.frontiers)
+			/*syncer := NewBulkPullSyncer(n.processFrontierBlocks, n.frontiers)
 			if err := Sync(syncer, peer); err == nil {
 				if count, err := n.ledger.CountBlocks(); err == nil {
 					fmt.Printf("block count: %d\n", count)
@@ -157,7 +157,7 @@ func (n *Node) syncFontiers() error {
 			}*/
 		}
 
-		// retry immediately if an error occurred
+		// retry sooner if an error occurred
 		if err == nil {
 			delta := time.Minute*5 - time.Since(startTime)
 			if delta > 0 {
@@ -165,6 +165,7 @@ func (n *Node) syncFontiers() error {
 			}
 		} else {
 			fmt.Printf("error requesting frontiers: %s\n", err)
+			time.Sleep(time.Second * 2)
 		}
 	}
 
@@ -180,9 +181,23 @@ func (n *Node) processFrontier(frontier *block.Frontier) {
 	//n.frontiers = append(n.frontiers, frontier)
 }
 
+func (n *Node) processFrontierBlocks(blocks []block.Block) {
+	// if we feed the list of blocks to the ledger in reverse, there's a good
+	// chance the blocks are magically in the right order
+
+	// note: this modifies the original slice
+	for i, j := 0, len(blocks)-1; i < j; i, j = i+1, j-1 {
+		blocks[i], blocks[j] = blocks[j], blocks[i]
+	}
+
+	if err := n.ledger.AddBlocks(blocks); err != nil {
+		fmt.Printf("error adding block: %s\n", err)
+	}
+}
+
 func (n *Node) processBlocks(blocks []block.Block) {
-	/*if err := n.ledger.AddBlocks(blocks); err != nil {
-		fmt.Printf("error processing blocks: %s\n", err)
+	/*if err := n.ledger.AddBlocks(blocks); err != nil { fmt.Printf("error
+		processing blocks: %s\n", err)
 		return
 	}*/
 
@@ -230,7 +245,7 @@ func (n *Node) sendPacket(addr *net.UDPAddr, packet proto.Packet) error {
 	return err
 }
 
-func (n *Node) sendKeepAlive(peer *Peer) error {
+func (n *Node) sendKeepAlive(target *Peer) error {
 	// pick a couple of random peers to share
 	peers, err := n.peers.Pick()
 	if err != nil {
@@ -240,14 +255,14 @@ func (n *Node) sendKeepAlive(peer *Peer) error {
 	var addrs []*net.UDPAddr
 	for _, p := range peers {
 		// don't add the target peer to the list
-		if p == peer {
+		if p == target {
 			continue
 		}
-		addrs = append(addrs, peer.Addr)
+		addrs = append(addrs, p.Addr)
 	}
 
 	packet := proto.NewKeepAlivePacket(addrs)
-	return n.sendPacket(peer.Addr, packet)
+	return n.sendPacket(target.Addr, packet)
 }
 
 func (n *Node) handlePacket(addr *net.UDPAddr, packet proto.Packet) error {
@@ -264,22 +279,29 @@ func (n *Node) handlePacket(addr *net.UDPAddr, packet proto.Packet) error {
 }
 
 func (n *Node) handleKeepAlivePacket(addr *net.UDPAddr, packet *proto.KeepAlivePacket) error {
-	// do we know this peer?
 	peer := n.peers.Get(addr)
 	if peer != nil {
-		// todo: only send a keep alive back if it's been a while
-		if err := n.sendKeepAlive(peer); err != nil {
+		// if we know about this peer, send a keep alive packet back if it's been a while
+		err := peer.Ping(func() error {
+			return n.sendKeepAlive(peer)
+		})
+		if err != nil {
+			return err
+		}
+	} else if !n.peers.Full() {
+		// if we don't know about this peer, try adding it to our list
+		if _, err := n.addPeer(addr); err != nil {
 			return err
 		}
 	}
 
 	// add any peers we don't already know about to our list
 	for _, peerAddr := range packet.Peers {
-		if n.peers.Full() {
+		if n.peers.Full() || n.peers.Get(peerAddr) != nil {
 			break
 		}
 
-		if _, err := n.addPeer(peerAddr); err != nil && err != ErrPeerExists {
+		if _, err := n.addPeer(peerAddr); err != nil {
 			return err
 		}
 	}

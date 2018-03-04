@@ -192,12 +192,7 @@ func (s *BulkPullSyncer) Parse(buf []byte) (bool, error) {
 		return false, nil
 	}
 
-	// report to the caller if the cache if full
 	s.blocks = append(s.blocks, s.current)
-	if len(s.blocks) >= syncCacheSize {
-		s.Flush()
-	}
-
 	return false, nil
 }
 
@@ -232,6 +227,9 @@ func (s *BulkPullSyncer) HeadSize() int {
 // NextPacket implements the Syncer interface.
 func (s *BulkPullSyncer) NextPacket() proto.Packet {
 	if s.i < len(s.frontiers) {
+		// report this frontier block list to the caller
+		s.Flush()
+
 		// request the chain of the next frontier
 		packet := &proto.BulkPullPacket{
 			Address: s.frontiers[s.i].Address,
