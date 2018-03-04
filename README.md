@@ -20,7 +20,7 @@ The goals of this project are to:
 
 ## Compiling
 
-Go 1.5 or newer is required.
+Go 1.8 or newer is required.
 
 Run ``make all`` to build everything. Binaries can be found in the 'build'
 folder.
