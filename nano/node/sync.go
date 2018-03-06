@@ -43,6 +43,7 @@ type (
 type FrontierSyncer struct {
 	current *block.Frontier
 	cb      FrontierSyncerFunc
+	sent    bool
 }
 
 type BulkPullSyncer struct {
@@ -102,7 +103,7 @@ func Sync(syncer Syncer, peer *Peer) error {
 			return err
 		}
 
-		var sendNext bool
+		var isDone bool
 		if size > 0 {
 			if _, err := io.ReadFull(reader, buf[:size]); err != nil {
 				return err
@@ -113,21 +114,19 @@ func Sync(syncer Syncer, peer *Peer) error {
 				return err
 			}
 
-			sendNext = done
+			isDone = done
 		} else {
-			sendNext = true
+			isDone = true
 		}
 
-		if sendNext {
-			packet := syncer.NextPacket()
-			if packet == nil {
-				syncer.Flush()
-				return nil
-			}
-
+		packet := syncer.NextPacket()
+		if packet != nil {
 			if err := sendPacket(conn, packet); err != nil {
 				return err
 			}
+		} else if isDone {
+			syncer.Flush()
+			return nil
 		}
 	}
 }
@@ -167,16 +166,18 @@ func (s *FrontierSyncer) HeadSize() int {
 
 // NextPacket implements the Syncer interface.
 func (s *FrontierSyncer) NextPacket() proto.Packet {
-	// if the last frontier is zero, the sync is complete
-	if s.current != nil && s.current.IsZero() {
-		return nil
+	if !s.sent {
+		packet := &proto.FrontierReqPacket{
+			StartAddress: make(wallet.Address, wallet.AddressSize),
+			Age:          math.MaxUint32,
+			Count:        math.MaxUint32,
+		}
+
+		s.sent = true
+		return packet
 	}
 
-	return &proto.FrontierReqPacket{
-		StartAddress: make(wallet.Address, wallet.AddressSize),
-		Age:          math.MaxUint32,
-		Count:        math.MaxUint32,
-	}
+	return nil
 }
 
 // Parse implements the Syncer interface.
@@ -210,6 +211,8 @@ func (s *BulkPullSyncer) Size(head []byte) (int, error) {
 	if err != nil {
 		// this indicates that the transmission is complete
 		if err == block.ErrNotABlock {
+			// report this frontier block list to the caller
+			s.Flush()
 			return 0, nil
 		}
 		return 0, err
@@ -227,9 +230,6 @@ func (s *BulkPullSyncer) HeadSize() int {
 // NextPacket implements the Syncer interface.
 func (s *BulkPullSyncer) NextPacket() proto.Packet {
 	if s.i < len(s.frontiers) {
-		// report this frontier block list to the caller
-		s.Flush()
-
 		// request the chain of the next frontier
 		packet := &proto.BulkPullPacket{
 			Address: s.frontiers[s.i].Address,
