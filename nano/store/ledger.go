@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	ErrBadWork         = errors.New("bad work")
 	ErrBadGenesis      = errors.New("genesis block in store doesn't match the given block")
 	ErrMissingPrevious = errors.New("previous block does not exist")
 	ErrMissingSource   = errors.New("source block does not exist")
@@ -320,6 +321,11 @@ func (l *Ledger) addChangeBlock(txn StoreTxn, blk *block.ChangeBlock) error {
 
 func (l *Ledger) addBlock(txn StoreTxn, blk block.Block) error {
 	hash := blk.Hash()
+
+	// is the work valid?
+	if !blk.Valid() {
+		return ErrBadWork
+	}
 
 	// is this block hash unique?
 	found, err := txn.HasBlock(hash)
