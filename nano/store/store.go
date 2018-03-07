@@ -10,7 +10,6 @@ import (
 var (
 	ErrBlockExists = errors.New("block already exists")
 	ErrStoreEmpty  = errors.New("the store is empty")
-	ErrBadGenesis  = errors.New("genesis block in store doesn't match the given block")
 )
 
 // Store is an interface that all Nano block lattice stores need to implement.
@@ -22,15 +21,22 @@ type Store interface {
 }
 
 type StoreTxn interface {
-	SetGenesis(genesis *block.OpenBlock) error
+	Empty() (bool, error)
 	AddBlock(blk block.Block) error
 	GetBlock(hash block.Hash) (block.Block, error)
+	DeleteBlock(hash block.Hash) error
 	HasBlock(hash block.Hash) (bool, error)
 	CountBlocks() (uint64, error)
-	AddAddress(address wallet.Address, blk block.OpenBlock) error
+	AddAddress(address wallet.Address, info *AddressInfo) error
+	GetAddress(address wallet.Address) (*AddressInfo, error)
+	UpdateAddress(address wallet.Address, info *AddressInfo) error
+	DeleteAddress(address wallet.Address) error
 	AddFrontier(frontier *block.Frontier) error
 	GetFrontier(hash block.Hash) (*block.Frontier, error)
 	GetFrontiers() ([]*block.Frontier, error)
 	DeleteFrontier(hash block.Hash) error
 	CountFrontiers() (uint64, error)
+	AddPending(destination wallet.Address, hash block.Hash, pending *Pending) error
+	GetPending(destination wallet.Address, hash block.Hash) (*Pending, error)
+	DeletePending(destination wallet.Address, hash block.Hash) error
 }

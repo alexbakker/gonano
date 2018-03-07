@@ -16,6 +16,14 @@ const (
 	BalanceMaxPrecision = 33
 )
 
+type BalanceComp byte
+
+const (
+	BalanceCompEqual BalanceComp = iota
+	BalanceCompBigger
+	BalanceCompSmaller
+)
+
 var (
 	zeroBalance = Balance(uint128.FromInts(0, 0))
 	units       = map[string]decimal.Decimal{
@@ -88,6 +96,20 @@ func (b Balance) Add(n Balance) Balance {
 
 func (b Balance) Sub(n Balance) Balance {
 	return Balance(uint128.Uint128(b).Sub(uint128.Uint128(n)))
+}
+
+func (b Balance) Compare(n Balance) BalanceComp {
+	res := uint128.Uint128(b).Compare(uint128.Uint128(n))
+	switch res {
+	case 1:
+		return BalanceCompBigger
+	case -1:
+		return BalanceCompSmaller
+	case 0:
+		return BalanceCompEqual
+	default:
+		panic("unexpected comparison result")
+	}
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.

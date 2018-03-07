@@ -12,6 +12,7 @@ const (
 	idPrefixBlock byte = iota
 	idPrefixAddress
 	idPrefixFrontier
+	idPrefixPending
 )
 
 // BadgerStore represents a Nano block lattice store backed by a badger database.
@@ -23,7 +24,7 @@ type BadgerStoreTxn struct {
 	txn *badger.Txn
 }
 
-// NewBadgerStore initializes/opens a badger database at the given directory.
+// NewBadgerStore initializes/opens a badger database in the given directory.
 func NewBadgerStore(dir string) (*BadgerStore, error) {
 	opts := badger.DefaultOptions
 	opts.Dir = dir
@@ -63,24 +64,6 @@ func (s *BadgerStore) Update(fn func(txn StoreTxn) error) error {
 	})
 }
 
-// SetGenesis initializes the database with the given genesis block, if needed.
-func (t *BadgerStoreTxn) SetGenesis(genesis *block.OpenBlock) error {
-	empty, err := t.Empty()
-	if err != nil {
-		return err
-	}
-
-	if !empty {
-		if _, err := t.GetBlock(genesis.Hash()); err != nil {
-			return ErrBadGenesis
-		}
-	} else {
-		return t.AddBlock(genesis)
-	}
-
-	return nil
-}
-
 // Empty reports whether the database is empty or not.
 func (t *BadgerStoreTxn) Empty() (bool, error) {
 	opts := badger.DefaultIteratorOptions
@@ -109,7 +92,7 @@ func (t *BadgerStoreTxn) AddBlock(blk block.Block) error {
 	key[0] = idPrefixBlock
 	copy(key[1:], hash[:])
 
-	// never overwrite blocks implicitly
+	// never overwrite implicitly
 	if _, err := t.txn.Get(key[:]); err != nil && err != badger.ErrKeyNotFound {
 		return err
 	} else if err == nil {
@@ -148,6 +131,13 @@ func (t *BadgerStoreTxn) GetBlock(hash block.Hash) (block.Block, error) {
 	return blk, nil
 }
 
+func (t *BadgerStoreTxn) DeleteBlock(hash block.Hash) error {
+	var key [1 + block.HashSize]byte
+	key[0] = idPrefixBlock
+	copy(key[1:], hash[:])
+	return t.txn.Delete(key[:])
+}
+
 // HasBlock reports whether the database contains a block with the given hash.
 func (t *BadgerStoreTxn) HasBlock(hash block.Hash) (bool, error) {
 	var key [1 + block.HashSize]byte
@@ -181,8 +171,8 @@ func (t *BadgerStoreTxn) CountBlocks() (uint64, error) {
 	return count, nil
 }
 
-func (t *BadgerStoreTxn) AddAddress(address wallet.Address, blk block.OpenBlock) error {
-	blockBytes, err := blk.MarshalBinary()
+func (t *BadgerStoreTxn) AddAddress(address wallet.Address, info *AddressInfo) error {
+	infoBytes, err := info.MarshalBinary()
 	if err != nil {
 		return err
 	}
@@ -191,14 +181,57 @@ func (t *BadgerStoreTxn) AddAddress(address wallet.Address, blk block.OpenBlock)
 	key[0] = idPrefixAddress
 	copy(key[1:], address)
 
-	// never overwrite addresses implicitly
+	// never overwrite implicitly
 	if _, err := t.txn.Get(key[:]); err != nil && err != badger.ErrKeyNotFound {
 		return err
 	} else if err == nil {
 		return errors.New("address already exists")
 	}
 
-	return t.txn.SetWithMeta(key[:], blockBytes, blk.ID())
+	return t.txn.Set(key[:], infoBytes)
+}
+
+func (t *BadgerStoreTxn) GetAddress(address wallet.Address) (*AddressInfo, error) {
+	var key [1 + wallet.AddressSize]byte
+	key[0] = idPrefixAddress
+	copy(key[1:], address)
+
+	item, err := t.txn.Get(key[:])
+	if err != nil {
+		return nil, err
+	}
+
+	infoBytes, err := item.ValueCopy(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var info AddressInfo
+	if err := info.UnmarshalBinary(infoBytes); err != nil {
+		return nil, err
+	}
+
+	return &info, nil
+}
+
+func (t *BadgerStoreTxn) UpdateAddress(address wallet.Address, info *AddressInfo) error {
+	infoBytes, err := info.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	var key [1 + wallet.AddressSize]byte
+	key[0] = idPrefixAddress
+	copy(key[1:], address)
+
+	return t.txn.Set(key[:], infoBytes)
+}
+
+func (t *BadgerStoreTxn) DeleteAddress(address wallet.Address) error {
+	var key [1 + block.HashSize]byte
+	key[0] = idPrefixAddress
+	copy(key[1:], address[:])
+	return t.txn.Delete(key[:])
 }
 
 func (t *BadgerStoreTxn) AddFrontier(frontier *block.Frontier) error {
@@ -206,7 +239,13 @@ func (t *BadgerStoreTxn) AddFrontier(frontier *block.Frontier) error {
 	key[0] = idPrefixFrontier
 	copy(key[1:], frontier.Hash[:])
 
-	// allow overwriting frontiers implicitly
+	// never overwrite implicitly
+	if _, err := t.txn.Get(key[:]); err != nil && err != badger.ErrKeyNotFound {
+		return err
+	} else if err == nil {
+		return errors.New("frontier already exists")
+	}
+
 	return t.txn.Set(key[:], frontier.Address)
 }
 
@@ -272,4 +311,57 @@ func (t *BadgerStoreTxn) CountFrontiers() (uint64, error) {
 	}
 
 	return count, nil
+}
+
+func (t *BadgerStoreTxn) AddPending(destination wallet.Address, hash block.Hash, pending *Pending) error {
+	pendingBytes, err := pending.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	var key [1 + PendingKeySize]byte
+	key[0] = idPrefixPending
+	copy(key[1:], destination)
+	copy(key[1+wallet.AddressSize:], hash[:])
+
+	// never overwrite implicitly
+	if _, err := t.txn.Get(key[:]); err != nil && err != badger.ErrKeyNotFound {
+		return err
+	} else if err == nil {
+		return errors.New("pending transaction already exists")
+	}
+
+	return t.txn.Set(key[:], pendingBytes)
+}
+
+func (t *BadgerStoreTxn) GetPending(destination wallet.Address, hash block.Hash) (*Pending, error) {
+	var key [1 + PendingKeySize]byte
+	key[0] = idPrefixPending
+	copy(key[1:], destination)
+	copy(key[1+wallet.AddressSize:], hash[:])
+
+	item, err := t.txn.Get(key[:])
+	if err != nil {
+		return nil, err
+	}
+
+	pendingBytes, err := item.ValueCopy(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var pending Pending
+	if err := pending.UnmarshalBinary(pendingBytes); err != nil {
+		return nil, err
+	}
+
+	return &pending, nil
+}
+
+func (t *BadgerStoreTxn) DeletePending(destination wallet.Address, hash block.Hash) error {
+	var key [1 + PendingKeySize]byte
+	key[0] = idPrefixPending
+	copy(key[1:], destination)
+	copy(key[1+wallet.AddressSize:], hash[:])
+	return t.txn.Delete(key[:])
 }

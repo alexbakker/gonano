@@ -149,12 +149,13 @@ func (n *Node) syncFontiers() error {
 
 		syncer := NewFrontierSyncer(n.processFrontier)
 		if err = Sync(syncer, peer); err == nil {
-			/*syncer := NewBulkPullSyncer(n.processFrontierBlocks, n.frontiers)
+			fmt.Printf("received frontiers: %d\n", len(n.frontiers))
+			syncer := NewBulkPullSyncer(n.processFrontierBlocks, n.frontiers)
 			if err := Sync(syncer, peer); err == nil {
 				if count, err := n.ledger.CountBlocks(); err == nil {
 					fmt.Printf("block count: %d\n", count)
 				}
-			}*/
+			}
 		}
 
 		// retry sooner if an error occurred
@@ -178,7 +179,7 @@ func (n *Node) syncBlocks() error {
 
 func (n *Node) processFrontier(frontier *block.Frontier) {
 	fmt.Printf("frontier: %+v\n", frontier)
-	//n.frontiers = append(n.frontiers, frontier)
+	n.frontiers = append(n.frontiers, frontier)
 }
 
 func (n *Node) processFrontierBlocks(blocks []block.Block) {
@@ -191,7 +192,7 @@ func (n *Node) processFrontierBlocks(blocks []block.Block) {
 	}
 
 	if err := n.ledger.AddBlocks(blocks); err != nil {
-		fmt.Printf("error adding block: %s\n", err)
+		//fmt.Printf("error adding block: %s\n", err)
 	}
 }
 

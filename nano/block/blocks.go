@@ -21,15 +21,15 @@ const (
 
 var (
 	ErrBadBlockType = errors.New("bad block type")
-	ErrNotABlock    = errors.New("block type is NOT_A_BLOCK")
+	ErrNotABlock    = errors.New("block type is not_a_block")
 
 	blockNames = map[byte]string{
-		idBlockInvalid:   "INVALID",
-		idBlockNotABlock: "NOT_A_BLOCK",
-		idBlockSend:      "SEND",
-		idBlockReceive:   "RECEIVE",
-		idBlockOpen:      "OPEN",
-		idBlockChange:    "CHANGE",
+		idBlockInvalid:   "invalid",
+		idBlockNotABlock: "not_a_block",
+		idBlockSend:      "send",
+		idBlockReceive:   "receive",
+		idBlockOpen:      "open",
+		idBlockChange:    "change",
 	}
 )
 
@@ -42,8 +42,8 @@ const (
 )
 
 type CommonBlock struct {
-	Signature Signature
-	Work      Work
+	Signature Signature `json:"signature"`
+	Work      Work      `json:"work"`
 }
 
 type Block interface {
@@ -58,29 +58,29 @@ type Block interface {
 }
 
 type OpenBlock struct {
-	SourceHash     Hash
-	Representative wallet.Address
-	Address        wallet.Address
-	Common         CommonBlock
+	SourceHash     Hash           `json:"source"`
+	Representative wallet.Address `json:"representative"`
+	Address        wallet.Address `json:"address"`
+	Common         CommonBlock    `json:"common"`
 }
 
 type SendBlock struct {
-	PreviousHash Hash
-	Destination  wallet.Address
-	Balance      wallet.Balance
-	Common       CommonBlock
+	PreviousHash Hash           `json:"previous"`
+	Destination  wallet.Address `json:"destination"`
+	Balance      wallet.Balance `json:"balance"`
+	Common       CommonBlock    `json:"common"`
 }
 
 type ReceiveBlock struct {
-	PreviousHash Hash
-	SourceHash   Hash
-	Common       CommonBlock
+	PreviousHash Hash        `json:"previous"`
+	SourceHash   Hash        `json:"source"`
+	Common       CommonBlock `json:"common"`
 }
 
 type ChangeBlock struct {
-	PreviousHash   Hash
-	Representative wallet.Address
-	Common         CommonBlock
+	PreviousHash   Hash           `json:"previous"`
+	Representative wallet.Address `json:"representative"`
+	Common         CommonBlock    `json:"common"`
 }
 
 func New(blockType byte) (Block, error) {

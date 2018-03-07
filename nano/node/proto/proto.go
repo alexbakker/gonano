@@ -48,16 +48,16 @@ var (
 	Magic = [...]byte{'R', 'C'}
 
 	packetNames = map[byte]string{
-		idPacketInvalid:        "INVALID",
-		idPacketNotAType:       "NOT_A_TYPE",
-		idPacketKeepAlive:      "KEEP_ALIVE",
-		idPacketPublish:        "PUBLISH",
-		idPacketConfirmReq:     "CONFIRM_REQ",
-		idPacketConfirmAck:     "CONFIRM_ACK",
-		idPacketBulkPull:       "BULK_PULL",
-		idPacketBulkPush:       "BULK_PUSH",
-		idPacketFrontierReq:    "FRONTIER_REQ",
-		idPacketBulkPullBlocks: "BULK_PULL_BLOCKS",
+		idPacketInvalid:        "invalid",
+		idPacketNotAType:       "not_a_type",
+		idPacketKeepAlive:      "keep_alive",
+		idPacketPublish:        "publish",
+		idPacketConfirmReq:     "confirm_req",
+		idPacketConfirmAck:     "confirm_ack",
+		idPacketBulkPull:       "bulk_pull",
+		idPacketBulkPush:       "bulk_push",
+		idPacketFrontierReq:    "frontier_req",
+		idPacketBulkPullBlocks: "bulk_pull_blocks",
 	}
 )
 

@@ -93,6 +93,9 @@ func Sync(syncer Syncer, peer *Peer) error {
 
 	for {
 		if headSize > 0 {
+			if err := conn.SetReadDeadline(time.Now().Add(syncTimeout)); err != nil {
+				return err
+			}
 			if _, err := io.ReadFull(reader, head); err != nil {
 				return err
 			}
@@ -105,6 +108,9 @@ func Sync(syncer Syncer, peer *Peer) error {
 
 		var isDone bool
 		if size > 0 {
+			if err := conn.SetReadDeadline(time.Now().Add(syncTimeout)); err != nil {
+				return err
+			}
 			if _, err := io.ReadFull(reader, buf[:size]); err != nil {
 				return err
 			}
@@ -115,8 +121,6 @@ func Sync(syncer Syncer, peer *Peer) error {
 			}
 
 			isDone = done
-		} else {
-			isDone = true
 		}
 
 		packet := syncer.NextPacket()
@@ -330,6 +334,10 @@ func initSync(peer *Peer) (*net.TCPConn, error) {
 func sendPacket(conn *net.TCPConn, packet proto.Packet) error {
 	packetBytes, err := proto.MarshalPacket(packet)
 	if err != nil {
+		return err
+	}
+
+	if err := conn.SetWriteDeadline(time.Now().Add(syncTimeout)); err != nil {
 		return err
 	}
 
