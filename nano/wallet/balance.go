@@ -13,7 +13,6 @@ import (
 const (
 	// BalanceSize represents the size of a balance in bytes.
 	BalanceSize         = 16
-	BalancePrecision    = 6
 	BalanceMaxPrecision = 33
 )
 
@@ -115,11 +114,27 @@ func (b Balance) UnitString(unit string, precision int32) string {
 }
 
 // String implements the fmt.Stringer interface. It returns the balance in Mxrb
-// with a precision of 6.
+// with maximum precision.
 func (b Balance) String() string {
-	return b.UnitString("Mxrb", BalancePrecision)
+	return b.UnitString("Mxrb", BalanceMaxPrecision)
 }
 
 func bigPow(base int64, exp int64) *big.Int {
 	return new(big.Int).Exp(big.NewInt(10), big.NewInt(exp), nil)
+}
+
+// MarshalText implements the encoding.TextMarshaler interface.
+func (b Balance) MarshalText() (text []byte, err error) {
+	return []byte(b.String()), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+func (b *Balance) UnmarshalText(text []byte) error {
+	balance, err := ParseBalance(string(text), "Mxrb")
+	if err != nil {
+		return err
+	}
+
+	*b = balance
+	return nil
 }

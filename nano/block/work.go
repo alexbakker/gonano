@@ -3,6 +3,7 @@ package block
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"hash"
 
 	"golang.org/x/crypto/blake2b"
@@ -21,15 +22,36 @@ type Worker struct {
 	hash hash.Hash
 }
 
+func (w Work) Valid(root Hash) bool {
+	return NewWorker(w, root).Valid()
+}
+
+// MarshalText implements the encoding.TextMarshaler interface.
+func (w Work) MarshalText() (text []byte, err error) {
+	return []byte(w.String()), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+func (w *Work) UnmarshalText(text []byte) error {
+	size := hex.DecodedLen(len(text))
+	if size != workSize {
+		return fmt.Errorf("bad work size: %d", size)
+	}
+
+	var work [workSize]byte
+	if _, err := hex.Decode(work[:], text); err != nil {
+		return err
+	}
+
+	*w = Work(binary.BigEndian.Uint64(work[:]))
+	return nil
+}
+
 // String implements the fmt.Stringer interface.
 func (w Work) String() string {
 	var bytes [workSize]byte
 	binary.BigEndian.PutUint64(bytes[:], uint64(w))
 	return hex.EncodeToString(bytes[:])
-}
-
-func (w Work) Valid(root Hash) bool {
-	return NewWorker(w, root).Valid()
 }
 
 func NewWorker(work Work, root Hash) *Worker {

@@ -93,3 +93,19 @@ func (a Address) String() string {
 func (a Address) Verify(data []byte, signature []byte) bool {
 	return ed25519.Verify(ed25519.PublicKey(a), data, signature)
 }
+
+// MarshalText implements the encoding.TextMarshaler interface.
+func (a Address) MarshalText() (text []byte, err error) {
+	return []byte(a.String()), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+func (a *Address) UnmarshalText(text []byte) error {
+	addr, err := ParseAddress(string(text))
+	if err != nil {
+		return err
+	}
+
+	*a = addr
+	return nil
+}

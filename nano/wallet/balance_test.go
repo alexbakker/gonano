@@ -45,10 +45,10 @@ func TestWalletBalance(t *testing.T) {
 	}
 
 	compare(b1, b1Units, BalanceMaxPrecision)
-	compare(b1, b1TruncatedUnits, BalancePrecision)
+	compare(b1, b1TruncatedUnits, 6)
 	compare(b2, b2Units, BalanceMaxPrecision)
 
-	if b1.String() != b1TruncatedUnits["Mxrb"] {
+	if b1.String() != b1Units["Mxrb"] {
 		t.Errorf("unexpected fmt.Stringer result")
 	}
 
@@ -71,7 +71,7 @@ func TestWalletBalance(t *testing.T) {
 			continue
 		}
 
-		res := b.UnitString(unit, BalancePrecision)
+		res := b.UnitString(unit, 6)
 		if res != s {
 			t.Errorf("(%s) expected: %s, got: %s\n", unit, s, res)
 		}

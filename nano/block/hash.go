@@ -3,6 +3,7 @@ package block
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 
 	"golang.org/x/crypto/blake2b"
 )
@@ -12,10 +13,6 @@ const (
 )
 
 type Hash [HashSize]byte
-
-func (h Hash) String() string {
-	return hex.EncodeToString(h[:])
-}
 
 func (h Hash) IsZero() bool {
 	for _, b := range h {
@@ -28,4 +25,30 @@ func (h Hash) IsZero() bool {
 
 func (h Hash) Equal(hash Hash) bool {
 	return bytes.Equal(h[:], hash[:])
+}
+
+// MarshalText implements the encoding.TextMarshaler interface.
+func (h Hash) MarshalText() (text []byte, err error) {
+	return []byte(h.String()), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+func (h *Hash) UnmarshalText(text []byte) error {
+	size := hex.DecodedLen(len(text))
+	if size != HashSize {
+		return fmt.Errorf("bad block hash size: %d", size)
+	}
+
+	var hash [HashSize]byte
+	if _, err := hex.Decode(hash[:], text); err != nil {
+		return err
+	}
+
+	*h = hash
+	return nil
+}
+
+// String implements the fmt.Stringer interface.
+func (h Hash) String() string {
+	return hex.EncodeToString(h[:])
 }
