@@ -39,8 +39,13 @@ func ParseBalance(s string, unit string) (Balance, error) {
 	if err != nil {
 		return zeroBalance, err
 	}
-	d = d.Mul(units[unit])
 
+	// zero is a special case
+	if d.Equals(decimal.Zero) {
+		return zeroBalance, nil
+	}
+
+	d = d.Mul(units[unit])
 	c := d.Coefficient()
 	f := bigPow(10, int64(d.Exponent()))
 	i := c.Mul(c, f)
