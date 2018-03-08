@@ -115,7 +115,7 @@ func (t *BadgerStoreTxn) GetBlock(hash block.Hash) (block.Block, error) {
 	}
 
 	blockType := item.UserMeta()
-	blockBytes, err := item.ValueCopy(nil)
+	blockBytes, err := item.Value()
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (t *BadgerStoreTxn) GetAddress(address wallet.Address) (*AddressInfo, error
 		return nil, err
 	}
 
-	infoBytes, err := item.ValueCopy(nil)
+	infoBytes, err := item.Value()
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +346,7 @@ func (t *BadgerStoreTxn) GetPending(destination wallet.Address, hash block.Hash)
 		return nil, err
 	}
 
-	pendingBytes, err := item.ValueCopy(nil)
+	pendingBytes, err := item.Value()
 	if err != nil {
 		return nil, err
 	}
