@@ -19,6 +19,16 @@
 				"signature": "D6CAB5845050A058806D18C38E022322664A7E169498206420619F2ED031E7ED6FC80D5F33701B54B34B4DF2B65F02ECD8B5E26E44EC11B17570E1EE008EEC0E",
 				"work": "96b201f33f0394ae"
 			}
+		},
+		{
+			"type": "open",
+			"source": "a170d51b94e00371ace76e35ac81dc9405d5d04d4cebc399aeace07ae05dd293",
+			"representative": "xrb_1awsn43we17c1oshdru4azeqjz9wii41dy8npubm4rg11so7dx3jtqgoeahy",
+			"address": "xrb_13ezf4od79h1tgj9aiu4djzcmmguendtjfuhwfukhuucboua8cpoihmh8byo",
+			"common": {
+				"signature": "e950ffdf0c9c4daf43c27ae3993378e4d8ad6fa591c24497c53e07a3bc80468539b0a467992a916f0dda6f267ad764a3c1a5bdbd8f489dfae8175eee0e337402",
+				"work": "e997c097a452a1b1"
+			}
 		}
 	]
 }

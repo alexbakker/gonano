@@ -25,8 +25,7 @@ const (
 )
 
 var (
-	zeroBalance = Balance(uint128.FromInts(0, 0))
-	units       = map[string]decimal.Decimal{
+	units = map[string]decimal.Decimal{
 		"raw":  decimal.New(1, 0),
 		"uxrb": decimal.New(1, 18),
 		"mxrb": decimal.New(1, 21),
@@ -35,6 +34,8 @@ var (
 		"Mxrb": decimal.New(1, 30),
 		"Gxrb": decimal.New(1, 33),
 	}
+
+	ZeroBalance = Balance(uint128.FromInts(0, 0))
 
 	ErrBadBalanceSize = errors.New("balances should be 16 bytes in size")
 )
@@ -45,12 +46,12 @@ type Balance uint128.Uint128
 func ParseBalance(s string, unit string) (Balance, error) {
 	d, err := decimal.NewFromString(s)
 	if err != nil {
-		return zeroBalance, err
+		return ZeroBalance, err
 	}
 
 	// zero is a special case
 	if d.Equals(decimal.Zero) {
-		return zeroBalance, nil
+		return ZeroBalance, nil
 	}
 
 	d = d.Mul(units[unit])
@@ -60,7 +61,7 @@ func ParseBalance(s string, unit string) (Balance, error) {
 
 	var balance Balance
 	if err := balance.UnmarshalBinary(i.Bytes()); err != nil {
-		return zeroBalance, err
+		return ZeroBalance, err
 	}
 
 	return balance, nil

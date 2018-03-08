@@ -13,6 +13,7 @@ const (
 	idPrefixAddress
 	idPrefixFrontier
 	idPrefixPending
+	idPrefixRepresentation
 )
 
 // BadgerStore represents a Nano block lattice store backed by a badger database.
@@ -364,4 +365,61 @@ func (t *BadgerStoreTxn) DeletePending(destination wallet.Address, hash block.Ha
 	copy(key[1:], destination)
 	copy(key[1+wallet.AddressSize:], hash[:])
 	return t.txn.Delete(key[:])
+}
+
+func (t *BadgerStoreTxn) setRepresentation(address wallet.Address, amount wallet.Balance) error {
+	var key [1 + wallet.AddressSize]byte
+	key[0] = idPrefixRepresentation
+	copy(key[1:], address)
+
+	amountBytes, err := amount.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	return t.txn.Set(key[:], amountBytes)
+}
+
+func (t *BadgerStoreTxn) AddRepresentation(address wallet.Address, amount wallet.Balance) error {
+	oldAmount, err := t.GetRepresentation(address)
+	if err != nil {
+		return err
+	}
+
+	return t.setRepresentation(address, oldAmount.Add(amount))
+}
+
+func (t *BadgerStoreTxn) SubRepresentation(address wallet.Address, amount wallet.Balance) error {
+	oldAmount, err := t.GetRepresentation(address)
+	if err != nil {
+		return err
+	}
+
+	return t.setRepresentation(address, oldAmount.Sub(amount))
+}
+
+func (t *BadgerStoreTxn) GetRepresentation(address wallet.Address) (wallet.Balance, error) {
+	var key [1 + wallet.AddressSize]byte
+	key[0] = idPrefixRepresentation
+	copy(key[1:], address)
+
+	item, err := t.txn.Get(key[:])
+	if err != nil {
+		if err == badger.ErrKeyNotFound {
+			return wallet.ZeroBalance, nil
+		}
+		return wallet.ZeroBalance, err
+	}
+
+	amountBytes, err := item.Value()
+	if err != nil {
+		return wallet.ZeroBalance, err
+	}
+
+	var amount wallet.Balance
+	if err := amount.UnmarshalBinary(amountBytes); err != nil {
+		return wallet.ZeroBalance, err
+	}
+
+	return amount, nil
 }

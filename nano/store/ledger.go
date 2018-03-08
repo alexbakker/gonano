@@ -39,12 +39,12 @@ func NewLedger(store Store, opts LedgerOptions) (*Ledger, error) {
 func (l *Ledger) setGenesis(blk *block.OpenBlock, balance wallet.Balance) error {
 	hash := blk.Hash()
 
-	// is the work valid?
+	// make sure the work value is valid
 	if !blk.Valid() {
 		fmt.Printf("bad work for genesis block")
 	}
 
-	// is the signature valid?
+	// make sure the signature of this block is valid
 	signature := blk.Signature()
 	if !blk.Address.Verify(hash[:], signature[:]) {
 		return errors.New("bad signature for genesis block")
@@ -94,13 +94,13 @@ func (l *Ledger) setGenesis(blk *block.OpenBlock, balance wallet.Balance) error 
 func (l *Ledger) addOpenBlock(txn StoreTxn, blk *block.OpenBlock) error {
 	hash := blk.Hash()
 
-	// is the signature of this block valid?
+	// make sure the signature of this block is valid
 	signature := blk.Signature()
 	if !blk.Address.Verify(hash[:], signature[:]) {
 		return errors.New("bad block signature")
 	}
 
-	// does this account already exist?
+	// make sure this address doesn't already exist
 	_, err := txn.GetAddress(blk.Address)
 	if err == nil {
 		return errors.New("account already exists")
@@ -128,7 +128,10 @@ func (l *Ledger) addOpenBlock(txn StoreTxn, blk *block.OpenBlock) error {
 		return err
 	}
 
-	// todo: update representative voting weight
+	// update representative voting weight
+	if err := txn.AddRepresentation(blk.Representative, pending.Amount); err != nil {
+		return err
+	}
 
 	// add a frontier for this address
 	frontier := block.Frontier{
@@ -146,14 +149,14 @@ func (l *Ledger) addOpenBlock(txn StoreTxn, blk *block.OpenBlock) error {
 func (l *Ledger) addSendBlock(txn StoreTxn, blk *block.SendBlock) error {
 	hash := blk.Hash()
 
-	// is the hash of the previous block a frontier?
+	// make sure the hash of the previous block a frontier
 	frontier, err := txn.GetFrontier(blk.Root())
 	if err != nil {
 		// todo: this indicates a fork!
 		return err
 	}
 
-	// is the signature of this block valid?
+	// make sure the signature of this block is valid
 	signature := blk.Signature()
 	if !frontier.Address.Verify(hash[:], signature[:]) {
 		return errors.New("bad block signature")
@@ -171,10 +174,8 @@ func (l *Ledger) addSendBlock(txn StoreTxn, blk *block.SendBlock) error {
 	// make sure this is not a negative or zero spend
 	comp := blk.Balance.Compare(info.Balance)
 	if comp == wallet.BalanceCompBigger || comp == wallet.BalanceCompEqual {
-		return fmt.Errorf("negative spend: %s >= %s", blk.Balance, info.Balance)
+		return fmt.Errorf("negative/zero spend: %s >= %s", blk.Balance, info.Balance)
 	}
-
-	// todo: update representative voting weight
 
 	// add this to the pending transaction list
 	pending := Pending{
@@ -189,6 +190,15 @@ func (l *Ledger) addSendBlock(txn StoreTxn, blk *block.SendBlock) error {
 	info.HeadBlock = hash
 	info.Balance = blk.Balance
 	if err := txn.UpdateAddress(frontier.Address, info); err != nil {
+		return err
+	}
+
+	// update representative voting weight
+	rep, err := l.getRepresentative(txn, frontier.Address)
+	if err != nil {
+		return err
+	}
+	if err := txn.SubRepresentation(rep, blk.Balance); err != nil {
 		return err
 	}
 
@@ -211,14 +221,14 @@ func (l *Ledger) addSendBlock(txn StoreTxn, blk *block.SendBlock) error {
 func (l *Ledger) addReceiveBlock(txn StoreTxn, blk *block.ReceiveBlock) error {
 	hash := blk.Hash()
 
-	// is the hash of the previous block a frontier?
+	// make sure the hash of the previous block a frontier
 	frontier, err := txn.GetFrontier(blk.Root())
 	if err != nil {
 		// todo: this indicates a fork!
 		return err
 	}
 
-	// is the signature of this block valid?
+	// make sure the signature of this block is valid
 	signature := blk.Signature()
 	if !frontier.Address.Verify(hash[:], signature[:]) {
 		return errors.New("bad block signature")
@@ -239,8 +249,6 @@ func (l *Ledger) addReceiveBlock(txn StoreTxn, blk *block.ReceiveBlock) error {
 		return err
 	}
 
-	// todo: update representative voting weight
-
 	// update the address info
 	info.HeadBlock = hash
 	info.Balance = info.Balance.Add(pending.Amount)
@@ -250,6 +258,15 @@ func (l *Ledger) addReceiveBlock(txn StoreTxn, blk *block.ReceiveBlock) error {
 
 	// delete the pending transaction
 	if err := txn.DeletePending(frontier.Address, blk.SourceHash); err != nil {
+		return err
+	}
+
+	// update representative voting weight
+	rep, err := l.getRepresentative(txn, frontier.Address)
+	if err != nil {
+		return err
+	}
+	if err := txn.AddRepresentation(rep, pending.Amount); err != nil {
 		return err
 	}
 
@@ -272,14 +289,14 @@ func (l *Ledger) addReceiveBlock(txn StoreTxn, blk *block.ReceiveBlock) error {
 func (l *Ledger) addChangeBlock(txn StoreTxn, blk *block.ChangeBlock) error {
 	hash := blk.Hash()
 
-	// is the hash of the previous block a frontier?
+	// make sure the hash of the previous block a frontier
 	frontier, err := txn.GetFrontier(blk.Root())
 	if err != nil {
 		// todo: this indicates a fork!
 		return err
 	}
 
-	// is the signature of this block valid?
+	// make sure the signature of this block is valid
 	signature := blk.Signature()
 	if !frontier.Address.Verify(hash[:], signature[:]) {
 		return errors.New("bad block signature")
@@ -301,7 +318,17 @@ func (l *Ledger) addChangeBlock(txn StoreTxn, blk *block.ChangeBlock) error {
 		return err
 	}
 
-	// todo: update representative voting weight
+	// update representative voting weight
+	oldRep, err := l.getRepresentative(txn, frontier.Address)
+	if err != nil {
+		return err
+	}
+	if err := txn.SubRepresentation(oldRep, info.Balance); err != nil {
+		return err
+	}
+	if err := txn.AddRepresentation(blk.Representative, info.Balance); err != nil {
+		return err
+	}
 
 	// update the frontier of this account
 	if err := txn.DeleteFrontier(hash); err != nil {
@@ -322,12 +349,12 @@ func (l *Ledger) addChangeBlock(txn StoreTxn, blk *block.ChangeBlock) error {
 func (l *Ledger) addBlock(txn StoreTxn, blk block.Block) error {
 	hash := blk.Hash()
 
-	// is the work valid?
+	// make sure the work value is valid
 	if !blk.Valid() {
 		return ErrBadWork
 	}
 
-	// is this block hash unique?
+	// make sure the hash of this block doesn't exist yet
 	found, err := txn.HasBlock(hash)
 	if err != nil {
 		return err
@@ -336,7 +363,7 @@ func (l *Ledger) addBlock(txn StoreTxn, blk block.Block) error {
 		return ErrBlockExists
 	}
 
-	// does the root block hash exist?
+	// make sure the previous/source block exists
 	found, err = txn.HasBlock(blk.Root())
 	if err != nil {
 		return err
@@ -369,8 +396,14 @@ func (l *Ledger) AddBlocks(blocks []block.Block) error {
 	return l.db.Update(func(txn StoreTxn) error {
 		for _, blk := range blocks {
 			if err := l.addBlock(txn, blk); err != nil {
-				if err != ErrMissingPrevious && err != ErrMissingSource {
-					// todo: add to unchecked list
+				switch err {
+				case ErrBlockExists:
+					// ignore
+				case ErrMissingPrevious:
+					fallthrough
+				case ErrMissingSource:
+					// add to unchecked list
+				default:
 					fmt.Printf("error adding block %s: %s\n", blk.Hash(), err)
 				}
 				continue
@@ -395,4 +428,25 @@ func (l *Ledger) CountBlocks() (uint64, error) {
 	})
 
 	return res, err
+}
+
+func (l *Ledger) getRepresentative(txn StoreTxn, address wallet.Address) (wallet.Address, error) {
+	info, err := txn.GetAddress(address)
+	if err != nil {
+		return nil, err
+	}
+
+	blk, err := txn.GetBlock(info.RepBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	switch b := blk.(type) {
+	case *block.OpenBlock:
+		return b.Representative, nil
+	case *block.ChangeBlock:
+		return b.Representative, nil
+	default:
+		return nil, errors.New("bad representative block type")
+	}
 }

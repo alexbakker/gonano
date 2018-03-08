@@ -39,4 +39,7 @@ type StoreTxn interface {
 	AddPending(destination wallet.Address, hash block.Hash, pending *Pending) error
 	GetPending(destination wallet.Address, hash block.Hash) (*Pending, error)
 	DeletePending(destination wallet.Address, hash block.Hash) error
+	AddRepresentation(address wallet.Address, amount wallet.Balance) error
+	SubRepresentation(address wallet.Address, amount wallet.Balance) error
+	GetRepresentation(address wallet.Address) (wallet.Balance, error)
 }
