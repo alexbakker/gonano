@@ -17,6 +17,7 @@ var (
 	errBadProtocol  = errors.New("unexpected protocol for this packet")
 
 	DefaultOptions = Options{
+		Network:      proto.NetworkLive,
 		Address:      ":7075",
 		EnableIPv6:   false,
 		EnableVoting: true,
@@ -26,6 +27,7 @@ var (
 
 type Node struct {
 	options Options
+	proto   *proto.Proto
 	udpConn *net.UDPConn
 	tcpConn *net.TCPListener
 	peers   *PeerList
@@ -35,6 +37,7 @@ type Node struct {
 }
 
 type Options struct {
+	Network      proto.Network
 	Address      string
 	EnableIPv6   bool
 	EnableVoting bool
@@ -64,6 +67,7 @@ func New(ledger *store.Ledger, options Options) (*Node, error) {
 	}
 
 	return &Node{
+		proto:   proto.New(options.Network),
 		udpConn: udpConn,
 		tcpConn: tcpConn,
 		options: options,
@@ -107,7 +111,7 @@ func (n *Node) listenUDP() error {
 		}
 
 		data := buf[:recv]
-		packet, err := proto.Parse(data)
+		packet, err := n.proto.UnmarshalPacket(data)
 		if err != nil {
 			fmt.Printf("recv error: %s\n", err)
 			continue
@@ -233,7 +237,7 @@ func (n *Node) addPeer(addr *net.UDPAddr) (*Peer, error) {
 }
 
 func (n *Node) sendPacket(addr *net.UDPAddr, packet proto.Packet) error {
-	bytes, err := proto.MarshalPacket(packet)
+	bytes, err := n.proto.MarshalPacket(packet)
 	if err != nil {
 		return err
 	}
@@ -262,7 +266,7 @@ func (n *Node) sendKeepAlive(target *Peer) error {
 		addrs = append(addrs, p.Addr)
 	}
 
-	packet := proto.NewKeepAlivePacket(addrs)
+	packet := n.proto.NewKeepAlivePacket(addrs)
 	return n.sendPacket(target.Addr, packet)
 }
 

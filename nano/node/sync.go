@@ -332,7 +332,8 @@ func initSync(peer *Peer) (*net.TCPConn, error) {
 }
 
 func sendPacket(conn *net.TCPConn, packet proto.Packet) error {
-	packetBytes, err := proto.MarshalPacket(packet)
+	// todo: get rid of this proto.New mess
+	packetBytes, err := proto.New(proto.NetworkLive).MarshalPacket(packet)
 	if err != nil {
 		return err
 	}

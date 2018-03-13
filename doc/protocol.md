@@ -63,7 +63,7 @@ Network identifiers:
 | :---- | :--- |
 | `A`   | Test |
 | `B`   | Beta |
-| `C`   | Main |
+| `C`   | Live |
 
 After the header, the message content follows. 
 
