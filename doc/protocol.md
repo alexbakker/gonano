@@ -47,14 +47,23 @@ those are encoded in big endian.
 
 Every packet starts with a header.
 
-| Length | Contents              |
-| :----- | :-------------------- |
-| `2`    | "RC" encoded in ASCII |
-| `1`    | `uint8_t` VersionMax  |
-| `1`    | `uint8_t` VersionMax  |
-| `1`    | `uint8_t` VersionMin  |
-| `1`    | `uint8_t` MessageType |
-| `2`    | `uint16_t` Extensions |
+| Length | Contents                    |
+| :----- | :-------------------------- |
+| `1`    | 'R' encoded in ASCII        |
+| `1`    | Network ID encoded in ASCII |
+| `1`    | `uint8_t` VersionMax        |
+| `1`    | `uint8_t` VersionMax        |
+| `1`    | `uint8_t` VersionMin        |
+| `1`    | `uint8_t` MessageType       |
+| `2`    | `uint16_t` Extensions       |
+
+Network identifiers:
+
+| Value | Name |
+| :---- | :--- |
+| `A`   | Test |
+| `B`   | Beta |
+| `C`   | Main |
 
 After the header, the message content follows. 
 
@@ -156,8 +165,8 @@ To indicate the end of a transmission, a block with type: "Not a type" is sent.
 
 When this packet is sent to a node, it will respond with a stream of frontiers.
 
-So, to retrieve all frontiers a node has, set the start public key to zero and age
-and count to UINT32_MAX.
+So, to retrieve all frontiers a node has, set the start public key to zero and
+age and count to UINT32_MAX.
 
 A frontier consists of the public key of an account and the newest block hash on
 its chain. 
@@ -188,14 +197,14 @@ There are two different modes.
 
 ### Blocks
 
-| Value  | Name        |
-| :----- | :---------- |
-| `0x00` | Invalid     |
+| Value  | Name       |
+| :----- | :--------- |
+| `0x00` | Invalid    |
 | `0x01` | Not a type |
-| `0x02` | Send        |
-| `0x03` | Receive     |
-| `0x04` | Open        |
-| `0x05` | Change      |
+| `0x02` | Send       |
+| `0x03` | Receive    |
+| `0x04` | Open       |
+| `0x05` | Change     |
 
 Every block contains a proof of work value. Read the Work chapter to learn more
 about it.

@@ -7,6 +7,8 @@ the exported API's are subject to change and should thus not be considered
 stable. The same applies to the database format, configuration files and wallet
 files.
 
+Protocol documentation can be found at: [doc/protocol.md](doc/protocol.md).
+
 The address of my motivational back account is:
 xrb_1tt5p7agt63f3q37151o1yz3k1pfdan7wet9anejzrdqnuz5kgtcqiwwtfm6.
 
