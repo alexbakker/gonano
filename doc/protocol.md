@@ -107,6 +107,9 @@ https://github.com/nanocurrency/raiblocks/issues/673. So for now, it's best to
 always send 8 peers. If less than 8 peers are available, the rest of the list is
 filled with unspecified ip's and zeroed ports.
 
+In the C++ implementation the default interval is 60 seconds.
+After 5 minutes a node is considered not alive anymore.
+
 #### Publish
 
 Publish packets are used to broadcast new blocks to nodes.
