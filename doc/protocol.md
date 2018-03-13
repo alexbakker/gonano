@@ -94,12 +94,12 @@ mechanism to make sure a node is still up and running.
 | :----- | :---------------------- |
 | `?`    | List of peers (up to 8) |
 
-A peer represented as a port and an IPv6 address.
+A peer represented as an IPv6 address and a port.
 
 | Length | Contents        |
 | :----- | :-------------- |
-| `2`    | `uint16_t` Port |
 | `16`   | IPv6 address    |
+| `2`    | `uint16_t` Port |
 
 __NOTE:__ The C++ implementation currently has a bug where it will do an out of
 bounds read if less than 8 peers are in the packet. See also:
