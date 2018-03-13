@@ -2,6 +2,7 @@ package node
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -17,6 +18,10 @@ import (
 const (
 	syncTimeout   = time.Second * 2
 	syncCacheSize = 10000
+)
+
+var (
+	errDone = errors.New("done")
 )
 
 type Syncer interface {
@@ -51,6 +56,7 @@ type BulkPullSyncer struct {
 	current   block.Block
 	frontiers []*block.Frontier
 	i         int
+	i2        int
 	cb        BulkPullSyncerFunc
 }
 
@@ -101,12 +107,15 @@ func Sync(syncer Syncer, peer *Peer) error {
 			}
 		}
 
+		var isDone bool
 		size, err := syncer.Size(head)
 		if err != nil {
-			return err
+			if err != errDone {
+				return err
+			}
+			isDone = true
 		}
 
-		var isDone bool
 		if size > 0 {
 			if err := conn.SetReadDeadline(time.Now().Add(syncTimeout)); err != nil {
 				return err
@@ -197,7 +206,12 @@ func (s *BulkPullSyncer) Parse(buf []byte) (bool, error) {
 		return false, nil
 	}
 
+	// report to the caller if the cache is full
 	s.blocks = append(s.blocks, s.current)
+	if len(s.blocks) >= syncCacheSize {
+		s.Flush()
+	}
+
 	return false, nil
 }
 
@@ -215,8 +229,10 @@ func (s *BulkPullSyncer) Size(head []byte) (int, error) {
 	if err != nil {
 		// this indicates that the transmission is complete
 		if err == block.ErrNotABlock {
-			// report this frontier block list to the caller
-			s.Flush()
+			s.i2++
+			if s.i == s.i2 {
+				return 0, errDone
+			}
 			return 0, nil
 		}
 		return 0, err
@@ -259,7 +275,7 @@ func (s *BulkPullBlocksSyncer) Parse(buf []byte) (bool, error) {
 		return false, nil
 	}
 
-	// report to the caller if the cache if full
+	// report to the caller if the cache is full
 	s.blocks = append(s.blocks, s.current)
 	if len(s.blocks) >= syncCacheSize {
 		s.Flush()

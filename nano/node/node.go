@@ -32,6 +32,7 @@ type Node struct {
 	tcpConn *net.TCPListener
 	peers   *PeerList
 	ledger  *store.Ledger
+	stop    chan struct{}
 
 	frontiers []*block.Frontier
 }
@@ -73,6 +74,7 @@ func New(ledger *store.Ledger, options Options) (*Node, error) {
 		options: options,
 		peers:   NewPeerList(options.MaxPeers),
 		ledger:  ledger,
+		stop:    make(chan struct{}),
 	}, nil
 }
 
@@ -90,6 +92,9 @@ func (n *Node) Run() error {
 }
 
 func (n *Node) Stop() error {
+	// close the stop channel to signal all goroutines to stop
+	close(n.stop)
+
 	// stop listening
 	var err error
 	if err = n.udpConn.Close(); err != nil {
@@ -106,6 +111,12 @@ func (n *Node) listenUDP() error {
 	buf := make([]byte, 1024)
 	for {
 		recv, addr, err := n.udpConn.ReadFromUDP(buf)
+		select {
+		case <-n.stop:
+			return nil
+		default:
+			// continue
+		}
 		if err != nil {
 			return err
 		}
@@ -159,7 +170,10 @@ func (n *Node) syncFontiers() error {
 				if count, err := n.ledger.CountBlocks(); err == nil {
 					fmt.Printf("block count: %d\n", count)
 				}
+			} else {
+				fmt.Printf("sync error: %s\n", err)
 			}
+			break
 		}
 
 		// retry sooner if an error occurred
@@ -182,19 +196,11 @@ func (n *Node) syncBlocks() error {
 }
 
 func (n *Node) processFrontier(frontier *block.Frontier) {
-	fmt.Printf("frontier: %+v\n", frontier)
+	//fmt.Printf("frontier: %+v\n", frontier)
 	n.frontiers = append(n.frontiers, frontier)
 }
 
 func (n *Node) processFrontierBlocks(blocks []block.Block) {
-	// if we feed the list of blocks to the ledger in reverse, there's a good
-	// chance the blocks are magically in the right order
-
-	// note: this modifies the original slice
-	for i, j := 0, len(blocks)-1; i < j; i, j = i+1, j-1 {
-		blocks[i], blocks[j] = blocks[j], blocks[i]
-	}
-
 	if err := n.ledger.AddBlocks(blocks); err != nil {
 		//fmt.Printf("error adding block: %s\n", err)
 	}

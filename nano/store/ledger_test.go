@@ -16,7 +16,7 @@ type testLedger struct {
 	dir   string
 }
 
-func initTestLedger(t *testing.T) *testLedger {
+func initTestLedger(t testing.TB) *testLedger {
 	dir, err := ioutil.TempDir("", "gonano_test_")
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +42,7 @@ func initTestLedger(t *testing.T) *testLedger {
 	}
 }
 
-func (l *testLedger) Close(t *testing.T) {
+func (l *testLedger) Close(t testing.TB) {
 	if err := l.store.Close(); err != nil {
 		t.Error(err)
 	}

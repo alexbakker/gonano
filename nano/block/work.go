@@ -11,7 +11,7 @@ import (
 
 const (
 	workSize      = 8
-	WorkThreshold = 0xffffffc000000000
+	WorkThreshold = uint64(0xffffffc000000000)
 )
 
 type Work uint64

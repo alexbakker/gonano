@@ -35,7 +35,7 @@ var (
 		"Gxrb": decimal.New(1, 33),
 	}
 
-	ZeroBalance = Balance(uint128.FromInts(0, 0))
+	ZeroBalance = Balance(uint128.Uint128{})
 
 	ErrBadBalanceSize = errors.New("balances should be 16 bytes in size")
 )

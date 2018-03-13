@@ -13,6 +13,8 @@ var (
 	ErrBadGenesis      = errors.New("genesis block in store doesn't match the given block")
 	ErrMissingPrevious = errors.New("previous block does not exist")
 	ErrMissingSource   = errors.New("source block does not exist")
+	ErrUnchecked       = errors.New("block was added to the unchecked list")
+	ErrFork            = errors.New("a fork was detected")
 )
 
 type Ledger struct {
@@ -103,7 +105,7 @@ func (l *Ledger) addOpenBlock(txn StoreTxn, blk *block.OpenBlock) error {
 	// make sure this address doesn't already exist
 	_, err := txn.GetAddress(blk.Address)
 	if err == nil {
-		return errors.New("account already exists")
+		return ErrFork
 	}
 
 	// obtain the pending transaction info
@@ -152,8 +154,7 @@ func (l *Ledger) addSendBlock(txn StoreTxn, blk *block.SendBlock) error {
 	// make sure the hash of the previous block is a frontier
 	frontier, err := txn.GetFrontier(blk.Root())
 	if err != nil {
-		// todo: this indicates a fork!
-		return err
+		return ErrFork
 	}
 
 	// make sure the signature of this block is valid
@@ -171,10 +172,10 @@ func (l *Ledger) addSendBlock(txn StoreTxn, blk *block.SendBlock) error {
 		return errors.New("unexpected head block for account")
 	}
 
-	// make sure this is not a negative or zero spend
-	comp := blk.Balance.Compare(info.Balance)
-	if comp == wallet.BalanceCompBigger || comp == wallet.BalanceCompEqual {
-		return fmt.Errorf("negative/zero spend: %s >= %s", blk.Balance, info.Balance)
+	// make sure this is not a negative spend
+	// (apparently zero spends are allowed?)
+	if blk.Balance.Compare(info.Balance) == wallet.BalanceCompBigger {
+		return fmt.Errorf("negative spend: %s > %s", blk.Balance, info.Balance)
 	}
 
 	// add this to the pending transaction list
@@ -203,7 +204,7 @@ func (l *Ledger) addSendBlock(txn StoreTxn, blk *block.SendBlock) error {
 	}
 
 	// update the frontier of this account
-	if err := txn.DeleteFrontier(hash); err != nil {
+	if err := txn.DeleteFrontier(frontier.Hash); err != nil {
 		return err
 	}
 	frontier = &block.Frontier{
@@ -224,8 +225,7 @@ func (l *Ledger) addReceiveBlock(txn StoreTxn, blk *block.ReceiveBlock) error {
 	// make sure the hash of the previous block is a frontier
 	frontier, err := txn.GetFrontier(blk.Root())
 	if err != nil {
-		// todo: this indicates a fork!
-		return err
+		return ErrFork
 	}
 
 	// make sure the signature of this block is valid
@@ -271,7 +271,7 @@ func (l *Ledger) addReceiveBlock(txn StoreTxn, blk *block.ReceiveBlock) error {
 	}
 
 	// update the frontier of this account
-	if err := txn.DeleteFrontier(hash); err != nil {
+	if err := txn.DeleteFrontier(frontier.Hash); err != nil {
 		return err
 	}
 	frontier = &block.Frontier{
@@ -292,8 +292,7 @@ func (l *Ledger) addChangeBlock(txn StoreTxn, blk *block.ChangeBlock) error {
 	// make sure the hash of the previous block is a frontier
 	frontier, err := txn.GetFrontier(blk.Root())
 	if err != nil {
-		// todo: this indicates a fork!
-		return err
+		return ErrFork
 	}
 
 	// make sure the signature of this block is valid
@@ -311,6 +310,12 @@ func (l *Ledger) addChangeBlock(txn StoreTxn, blk *block.ChangeBlock) error {
 		return errors.New("unexpected head block for account")
 	}
 
+	// obtain the old representative
+	oldRep, err := l.getRepresentative(txn, frontier.Address)
+	if err != nil {
+		return err
+	}
+
 	// update the address info
 	info.HeadBlock = hash
 	info.RepBlock = hash
@@ -319,10 +324,6 @@ func (l *Ledger) addChangeBlock(txn StoreTxn, blk *block.ChangeBlock) error {
 	}
 
 	// update representative voting weight
-	oldRep, err := l.getRepresentative(txn, frontier.Address)
-	if err != nil {
-		return err
-	}
 	if err := txn.SubRepresentation(oldRep, info.Balance); err != nil {
 		return err
 	}
@@ -331,7 +332,7 @@ func (l *Ledger) addChangeBlock(txn StoreTxn, blk *block.ChangeBlock) error {
 	}
 
 	// update the frontier of this account
-	if err := txn.DeleteFrontier(hash); err != nil {
+	if err := txn.DeleteFrontier(frontier.Hash); err != nil {
 		return err
 	}
 	frontier = &block.Frontier{
@@ -369,20 +370,125 @@ func (l *Ledger) addBlock(txn StoreTxn, blk block.Block) error {
 		return err
 	}
 	if !found {
-		return ErrMissingPrevious
+		switch blk.(type) {
+		case *block.OpenBlock:
+			return ErrMissingSource
+		case *block.SendBlock:
+			return ErrMissingPrevious
+		case *block.ReceiveBlock:
+			return ErrMissingPrevious
+		case *block.ChangeBlock:
+			return ErrMissingPrevious
+		default:
+			panic("bad block type")
+		}
 	}
 
 	switch b := blk.(type) {
 	case *block.OpenBlock:
-		return l.addOpenBlock(txn, b)
+		err = l.addOpenBlock(txn, b)
 	case *block.SendBlock:
-		return l.addSendBlock(txn, b)
+		err = l.addSendBlock(txn, b)
 	case *block.ReceiveBlock:
-		return l.addReceiveBlock(txn, b)
+		err = l.addReceiveBlock(txn, b)
 	case *block.ChangeBlock:
-		return l.addChangeBlock(txn, b)
+		err = l.addChangeBlock(txn, b)
 	default:
 		panic("bad block type")
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// flush if needed
+	return txn.Flush()
+}
+
+func (l *Ledger) addUncheckedBlock(txn StoreTxn, parentHash block.Hash, blk block.Block, kind UncheckedKind) error {
+	found, err := txn.HasUncheckedBlock(parentHash, kind)
+	if err != nil {
+		return err
+	}
+
+	if found {
+		return nil
+	}
+
+	return txn.AddUncheckedBlock(parentHash, blk, kind)
+}
+
+func (l *Ledger) processUncheckedBlock(txn StoreTxn, blk block.Block, kind UncheckedKind) error {
+	hash := blk.Hash()
+
+	found, err := txn.HasUncheckedBlock(hash, kind)
+	if err != nil {
+		return err
+	}
+
+	if found {
+		uncheckedBlk, err := txn.GetUncheckedBlock(hash, kind)
+		if err != nil {
+			return err
+		}
+
+		if err := l.processBlock(txn, uncheckedBlk); err == nil {
+			// delete from the unchecked list if successful
+			if err := txn.DeleteUncheckedBlock(hash, kind); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (l *Ledger) processBlock(txn StoreTxn, blk block.Block) error {
+	err := l.addBlock(txn, blk)
+
+	switch err {
+	case ErrMissingPrevious:
+		// add to unchecked list
+		if err := l.addUncheckedBlock(txn, blk.Root(), blk, UncheckedKindPrevious); err != nil {
+			return err
+		}
+		return ErrUnchecked
+	case ErrMissingSource:
+		var source block.Hash
+		switch b := blk.(type) {
+		case *block.ReceiveBlock:
+			source = b.SourceHash
+		case *block.OpenBlock:
+			source = b.SourceHash
+		default:
+			panic("unexpected block type")
+		}
+
+		// add to unchecked list
+		if err := l.addUncheckedBlock(txn, source, blk, UncheckedKindSource); err != nil {
+			return err
+		}
+
+		return ErrUnchecked
+	case nil:
+		fmt.Printf("added block: %s\n", blk.Hash())
+
+		// try to process any unchecked child blocks
+		if err := l.processUncheckedBlock(txn, blk, UncheckedKindPrevious); err != nil {
+			return err
+		}
+
+		if err := l.processUncheckedBlock(txn, blk, UncheckedKindSource); err != nil {
+			return err
+		}
+
+		return nil
+	case ErrBlockExists:
+		// ignore
+		return nil
+	default:
+		fmt.Printf("error adding block %s: %s\n", blk.Hash(), err)
+		return err
 	}
 }
 
@@ -395,22 +501,12 @@ func (l *Ledger) AddBlock(blk block.Block) error {
 func (l *Ledger) AddBlocks(blocks []block.Block) error {
 	return l.db.Update(func(txn StoreTxn) error {
 		for _, blk := range blocks {
-			if err := l.addBlock(txn, blk); err != nil {
-				switch err {
-				case ErrBlockExists:
-					// ignore
-				case ErrMissingPrevious:
-					fallthrough
-				case ErrMissingSource:
-					// add to unchecked list
-				default:
-					fmt.Printf("error adding block %s: %s\n", blk.Hash(), err)
-				}
-				continue
-			} else {
-				fmt.Printf("added block: %s\n", blk.Hash())
+			err := l.processBlock(txn, blk)
+			if err != nil && err != ErrUnchecked {
+				fmt.Printf("try add err: %s\n", err)
 			}
 		}
+
 		return nil
 	})
 }
@@ -428,6 +524,36 @@ func (l *Ledger) CountBlocks() (uint64, error) {
 	})
 
 	return res, err
+}
+
+func (l *Ledger) CountUncheckedBlocks() (uint64, error) {
+	var res uint64
+
+	err := l.db.View(func(txn StoreTxn) error {
+		count, err := txn.CountUncheckedBlocks()
+		if err != nil {
+			return err
+		}
+		res = count
+		return nil
+	})
+
+	return res, err
+}
+
+func (l *Ledger) GetBalance(address wallet.Address) (wallet.Balance, error) {
+	var balance wallet.Balance
+
+	err := l.db.View(func(txn StoreTxn) error {
+		info, err := txn.GetAddress(address)
+		if err != nil {
+			return err
+		}
+		balance = info.Balance
+		return nil
+	})
+
+	return balance, err
 }
 
 func (l *Ledger) getRepresentative(txn StoreTxn, address wallet.Address) (wallet.Address, error) {

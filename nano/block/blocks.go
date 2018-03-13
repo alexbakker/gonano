@@ -182,7 +182,7 @@ func (b *OpenBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	commonBytes := make([]byte, reader.Len())
+	commonBytes := make([]byte, blockSizeCommon)
 	if _, err = reader.Read(commonBytes); err != nil {
 		return err
 	}
@@ -266,7 +266,7 @@ func (b *SendBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	commonBytes := make([]byte, reader.Len())
+	commonBytes := make([]byte, blockSizeCommon)
 	if _, err = reader.Read(commonBytes); err != nil {
 		return err
 	}
@@ -335,7 +335,7 @@ func (b *ReceiveBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	commonBytes := make([]byte, reader.Len())
+	commonBytes := make([]byte, blockSizeCommon)
 	if _, err = reader.Read(commonBytes); err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ func (b *ChangeBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	commonBytes := make([]byte, reader.Len())
+	commonBytes := make([]byte, blockSizeCommon)
 	if _, err = reader.Read(commonBytes); err != nil {
 		return err
 	}
