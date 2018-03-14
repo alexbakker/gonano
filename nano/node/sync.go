@@ -2,7 +2,6 @@ package node
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -20,23 +19,15 @@ const (
 	syncCacheSize = 10000
 )
 
-var (
-	errDone = errors.New("done")
-)
-
 type Syncer interface {
-	// Parse parses the given packet.
-	Parse(buf []byte) (bool, error)
-	// Size returns the size of the next packet, given the packet header. If it
-	// returns a size of 0 and no error, the transmission is complete.
-	Size(head []byte) (int, error)
-	// HeadSize returns the size that the header for each packet will have.
-	HeadSize() int
-	// NextPacket returns the next packet that should be sent to continue the
-	// sync. If it returns nil, the sync is complete.
-	NextPacket() proto.Packet
 	// Flush flushes all items in the cache through the registered callback.
 	Flush()
+	// ReadNext reads the next packet from the given reader, parses it and adds
+	// the item to the cache.
+	ReadNext(r io.Reader) (done bool, err error)
+	// WriteNext writes the next packet to the given reader. If no packets need
+	// to be sent, 'done' is set to true.
+	WriteNext(w io.Writer) (done bool, err error)
 }
 
 type (
@@ -46,26 +37,21 @@ type (
 )
 
 type FrontierSyncer struct {
-	current *block.Frontier
-	cb      FrontierSyncerFunc
-	sent    bool
+	cb FrontierSyncerFunc
 }
 
 type BulkPullSyncer struct {
-	blocks    []block.Block
-	current   block.Block
-	frontiers []*block.Frontier
-	i         int
-	i2        int
-	cb        BulkPullSyncerFunc
+	blocks     []block.Block
+	frontiers  []*block.Frontier
+	writeIndex int
+	readIndex  int
+	cb         BulkPullSyncerFunc
 }
 
 type BulkPullBlocksSyncer struct {
-	blocks  []block.Block
-	current block.Block
-	sent    bool
-	mode    proto.BulkPullMode
-	cb      BulkPullBlocksSyncerFunc
+	blocks []block.Block
+	mode   proto.BulkPullMode
+	cb     BulkPullBlocksSyncerFunc
 }
 
 func NewFrontierSyncer(cb FrontierSyncerFunc) *FrontierSyncer {
@@ -73,11 +59,19 @@ func NewFrontierSyncer(cb FrontierSyncerFunc) *FrontierSyncer {
 }
 
 func NewBulkPullSyncer(cb BulkPullSyncerFunc, frontiers []*block.Frontier) *BulkPullSyncer {
-	return &BulkPullSyncer{cb: cb, frontiers: frontiers}
+	return &BulkPullSyncer{
+		cb:        cb,
+		frontiers: frontiers,
+		blocks:    make([]block.Block, 0, syncCacheSize),
+	}
 }
 
 func NewBulkPullBlocksSyncer(cb BulkPullBlocksSyncerFunc) *BulkPullBlocksSyncer {
-	return &BulkPullBlocksSyncer{cb: cb, mode: proto.BulkPullModeList}
+	return &BulkPullBlocksSyncer{
+		cb:     cb,
+		mode:   proto.BulkPullModeList,
+		blocks: make([]block.Block, 0, syncCacheSize),
+	}
 }
 
 func Sync(syncer Syncer, peer *Peer) error {
@@ -87,79 +81,125 @@ func Sync(syncer Syncer, peer *Peer) error {
 	}
 	defer conn.Close()
 
-	packet := syncer.NextPacket()
-	if err := sendPacket(conn, packet); err != nil {
+	errs := make(chan error)
+	cancel := make(chan struct{})
+
+	go func(errs chan<- error, cancel <-chan struct{}) {
+		for {
+			select {
+			case <-cancel:
+				errs <- nil
+				return
+			default:
+				// continue
+			}
+
+			// reset the write deadline
+			if err := conn.SetWriteDeadline(time.Now().Add(syncTimeout)); err != nil {
+				errs <- err
+				return
+			}
+
+			// allow the syncer to send some data if it needs to
+			done, err := syncer.WriteNext(conn)
+			if err != nil {
+				errs <- err
+				return
+			}
+
+			if done {
+				errs <- nil
+				return
+			}
+		}
+	}(errs, cancel)
+
+	go func(errs chan<- error, cancel <-chan struct{}) {
+		reader := bufio.NewReader(conn)
+
+		for {
+			select {
+			case <-cancel:
+				errs <- nil
+				return
+			default:
+				// continue
+			}
+
+			// reset the read deadline
+			if err := conn.SetReadDeadline(time.Now().Add(syncTimeout)); err != nil {
+				errs <- err
+				return
+			}
+
+			// let the syncer read the next packet
+			done, err := syncer.ReadNext(reader)
+			if err != nil {
+				errs <- err
+				return
+			}
+
+			if done {
+				errs <- nil
+				return
+			}
+		}
+	}(errs, cancel)
+
+	// wait for both goroutines to finish or for one of them to error out
+	var res error
+	for i := 0; i < 2; {
+		select {
+		case err := <-errs:
+			// if an error occurred, cancel the other goroutine
+			if err != nil {
+				res = err
+				close(cancel)
+			}
+			i++
+		}
+	}
+	if res != nil {
 		return err
 	}
 
-	buf := make([]byte, 256)
-	headSize := syncer.HeadSize()
-	head := make([]byte, headSize)
-	reader := bufio.NewReader(conn)
-
-	for {
-		if headSize > 0 {
-			if err := conn.SetReadDeadline(time.Now().Add(syncTimeout)); err != nil {
-				return err
-			}
-			if _, err := io.ReadFull(reader, head); err != nil {
-				return err
-			}
-		}
-
-		var isDone bool
-		size, err := syncer.Size(head)
-		if err != nil {
-			if err != errDone {
-				return err
-			}
-			isDone = true
-		}
-
-		if size > 0 {
-			if err := conn.SetReadDeadline(time.Now().Add(syncTimeout)); err != nil {
-				return err
-			}
-			if _, err := io.ReadFull(reader, buf[:size]); err != nil {
-				return err
-			}
-
-			done, err := syncer.Parse(buf[:size])
-			if err != nil {
-				return err
-			}
-
-			isDone = done
-		}
-
-		packet := syncer.NextPacket()
-		if packet != nil {
-			if err := sendPacket(conn, packet); err != nil {
-				return err
-			}
-		} else if isDone {
-			syncer.Flush()
-			return nil
-		}
-	}
+	// flush the syncer cache
+	syncer.Flush()
+	return nil
 }
 
-// Parse implements the Syncer interface.
-func (s *FrontierSyncer) Parse(buf []byte) (bool, error) {
-	s.current = new(block.Frontier)
-	if err := s.current.UnmarshalBinary(buf); err != nil {
+// ReadNext implements the Syncer interface.
+func (s *FrontierSyncer) ReadNext(r io.Reader) (bool, error) {
+	var buf [block.FrontierSize]byte
+	if _, err := io.ReadFull(r, buf[:]); err != nil {
+		return false, err
+	}
+
+	var frontier block.Frontier
+	if err := frontier.UnmarshalBinary(buf[:]); err != nil {
 		return false, err
 	}
 
 	// if the frontier is zero, the transmission is complete
-	if s.current.IsZero() {
+	if frontier.IsZero() {
 		return true, nil
 	}
 
 	// report to the caller
-	s.cb(s.current)
+	s.cb(&frontier)
 
 	return false, nil
+}
+
+// WriteNext implements the Syncer interface.
+func (s *FrontierSyncer) WriteNext(w io.Writer) (done bool, err error) {
+	packet := proto.FrontierReqPacket{
+		StartAddress: make(wallet.Address, wallet.AddressSize),
+		Age:          math.MaxUint32,
+		Count:        math.MaxUint32,
+	}
+
+	return true, writePacket(w, &packet)
 }
 
 // Flush implements the Syncer interface.
@@ -167,116 +207,64 @@ func (s *FrontierSyncer) Flush() {
 
 }
 
-// Size implements the Syncer interface.
-func (s *FrontierSyncer) Size(head []byte) (int, error) {
-	return block.FrontierSize, nil
-}
-
-// HeadSize implements the Syncer interface.
-func (s *FrontierSyncer) HeadSize() int {
-	return 0
-}
-
-// NextPacket implements the Syncer interface.
-func (s *FrontierSyncer) NextPacket() proto.Packet {
-	if !s.sent {
-		packet := &proto.FrontierReqPacket{
-			StartAddress: make(wallet.Address, wallet.AddressSize),
-			Age:          math.MaxUint32,
-			Count:        math.MaxUint32,
+// ReadNext implements the Syncer interface.
+func (s *BulkPullSyncer) ReadNext(r io.Reader) (bool, error) {
+	blk, err := readBlock(r)
+	if err != nil {
+		if err == block.ErrNotABlock {
+			s.readIndex++
+			if s.readIndex >= len(s.frontiers) {
+				return true, nil
+			}
+			return false, nil
 		}
-
-		s.sent = true
-		return packet
-	}
-
-	return nil
-}
-
-// Parse implements the Syncer interface.
-func (s *BulkPullSyncer) Parse(buf []byte) (bool, error) {
-	if err := s.current.UnmarshalBinary(buf); err != nil {
 		return false, err
 	}
 
-	// skip blocks with invalid work
-	// todo: properly handle invalid blocks
-	if !s.current.Valid() {
-		fmt.Printf("bad work for block: %s\n", s.current.Hash())
-		return false, nil
-	}
-
 	// report to the caller if the cache is full
-	s.blocks = append(s.blocks, s.current)
+	s.blocks = append(s.blocks, blk)
 	if len(s.blocks) >= syncCacheSize {
 		s.Flush()
 	}
 
 	return false, nil
+}
+
+// WriteNext implements the Syncer interface.
+func (s *BulkPullSyncer) WriteNext(w io.Writer) (done bool, err error) {
+	if s.writeIndex < len(s.frontiers) {
+		// request the chain of the next frontier
+		packet := proto.BulkPullPacket{
+			Address: s.frontiers[s.writeIndex].Address,
+		}
+
+		s.writeIndex++
+		return false, writePacket(w, &packet)
+	}
+
+	return true, nil
 }
 
 // Flush implements the Syncer interface.
 func (s *BulkPullSyncer) Flush() {
 	if len(s.blocks) > 0 {
 		s.cb(s.blocks)
-		s.blocks = nil
+		s.blocks = s.blocks[:0]
 	}
 }
 
-// Size implements the Syncer interface.
-func (s *BulkPullSyncer) Size(head []byte) (int, error) {
-	blk, err := block.New(head[0])
+// ReadNext implements the Syncer interface.
+func (s *BulkPullBlocksSyncer) ReadNext(r io.Reader) (bool, error) {
+	blk, err := readBlock(r)
 	if err != nil {
-		// this indicates that the transmission is complete
 		if err == block.ErrNotABlock {
-			s.i2++
-			if s.i == s.i2 {
-				return 0, errDone
-			}
-			return 0, nil
+			return true, nil
 		}
-		return 0, err
-	}
-
-	s.current = blk
-	return s.current.Size(), nil
-}
-
-// HeadSize implements the Syncer interface.
-func (s *BulkPullSyncer) HeadSize() int {
-	return 1
-}
-
-// NextPacket implements the Syncer interface.
-func (s *BulkPullSyncer) NextPacket() proto.Packet {
-	if s.i < len(s.frontiers) {
-		// request the chain of the next frontier
-		packet := &proto.BulkPullPacket{
-			Address: s.frontiers[s.i].Address,
-		}
-
-		s.i++
-		return packet
-	}
-
-	return nil
-}
-
-// Parse implements the Syncer interface.
-func (s *BulkPullBlocksSyncer) Parse(buf []byte) (bool, error) {
-	if err := s.current.UnmarshalBinary(buf); err != nil {
 		return false, err
 	}
 
-	// skip blocks with invalid work
-	// todo: properly handle invalid blocks
-	if !s.current.Valid() {
-		fmt.Printf("bad work for block: %s\n", s.current.Hash())
-		return false, nil
-	}
-
 	// report to the caller if the cache is full
-	s.blocks = append(s.blocks, s.current)
+	s.blocks = append(s.blocks, blk)
 	if len(s.blocks) >= syncCacheSize {
 		s.Flush()
 	}
@@ -284,53 +272,28 @@ func (s *BulkPullBlocksSyncer) Parse(buf []byte) (bool, error) {
 	return false, nil
 }
 
+// WriteNext implements the Syncer interface.
+func (s *BulkPullBlocksSyncer) WriteNext(w io.Writer) (done bool, err error) {
+	packet := proto.BulkPullBlocksPacket{
+		Mode:  s.mode,
+		Count: math.MaxUint32,
+	}
+
+	// set min hash to zero and the max hash to math.MaxUint8
+	for i := 0; i < block.HashSize; i++ {
+		packet.Min[i] = 0
+		packet.Max[i] = math.MaxUint8
+	}
+
+	return true, writePacket(w, &packet)
+}
+
 // Flush implements the Syncer interface.
 func (s *BulkPullBlocksSyncer) Flush() {
 	if len(s.blocks) > 0 {
 		s.cb(s.blocks)
-		s.blocks = nil
+		s.blocks = s.blocks[:0]
 	}
-}
-
-// Size implements the Syncer interface.
-func (s *BulkPullBlocksSyncer) Size(head []byte) (int, error) {
-	blk, err := block.New(head[0])
-	if err != nil {
-		// this indicates that the transmission is complete
-		if err == block.ErrNotABlock {
-			return 0, nil
-		}
-		return 0, err
-	}
-
-	s.current = blk
-	return s.current.Size(), nil
-}
-
-// HeadSize implements the Syncer interface.
-func (s *BulkPullBlocksSyncer) HeadSize() int {
-	return 1
-}
-
-// NextPacket implements the Syncer interface.
-func (s *BulkPullBlocksSyncer) NextPacket() proto.Packet {
-	if !s.sent {
-		packet := &proto.BulkPullBlocksPacket{
-			Mode:  s.mode,
-			Count: math.MaxUint32,
-		}
-
-		// set min hash to zero and the max hash to math.MaxUint8
-		for i := 0; i < block.HashSize; i++ {
-			packet.Min[i] = 0
-			packet.Max[i] = math.MaxUint8
-		}
-
-		s.sent = true
-		return packet
-	}
-
-	return nil
 }
 
 func initSync(peer *Peer) (*net.TCPConn, error) {
@@ -347,17 +310,42 @@ func initSync(peer *Peer) (*net.TCPConn, error) {
 	return conn, nil
 }
 
-func sendPacket(conn *net.TCPConn, packet proto.Packet) error {
+func writePacket(w io.Writer, packet proto.Packet) error {
 	// todo: get rid of this proto.New mess
 	packetBytes, err := proto.New(proto.NetworkLive).MarshalPacket(packet)
 	if err != nil {
 		return err
 	}
 
-	if err := conn.SetWriteDeadline(time.Now().Add(syncTimeout)); err != nil {
-		return err
+	_, err = w.Write(packetBytes)
+	return err
+}
+
+func readBlock(r io.Reader) (block.Block, error) {
+	var head [1]byte
+	if _, err := io.ReadFull(r, head[:]); err != nil {
+		return nil, err
 	}
 
-	_, err = conn.Write(packetBytes)
-	return err
+	blk, err := block.New(head[0])
+	if err != nil {
+		return nil, err
+	}
+
+	buf := make([]byte, blk.Size())
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return nil, err
+	}
+	if err := blk.UnmarshalBinary(buf); err != nil {
+		return nil, err
+	}
+
+	// skip blocks with invalid work
+	// todo: properly handle invalid blocks
+	if !blk.Valid() {
+		fmt.Printf("bad work for block: %s\n", blk.Hash())
+		return nil, err
+	}
+
+	return blk, err
 }
