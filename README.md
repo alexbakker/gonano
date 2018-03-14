@@ -20,6 +20,53 @@ The goals of this project are to:
 - Document the protocol
 - Make Nano more accessible to developers
 
+## Progress
+
+- [ ] Network Protocol
+  - [ ] Documentation (see also: [doc/protocol.md](doc/protocol.md))
+  - [ ] Data structures
+    - [x] Keep alive
+    - [x] Publish
+    - [x] Confirm Req
+    - [x] Confirm ACK
+    - [x] Bulk Pull
+    - [ ] Bulk Push
+    - [x] Frontier Req
+    - [x] Bulk Pull Blocks
+  - [ ] Synchronization
+    - [x] Pull
+    - [ ] Push
+  - [x] Pinging
+  - [ ] (Re)broadcasting blocks
+  - [ ] Voting
+- [ ] Blocks
+  - [ ] Data structures
+    - [x] Send
+    - [x] Receive
+    - [x] Open
+    - [x] Change
+    - [ ] Universal
+  - [x] Proof of Work
+- [ ] Node
+  - [ ] Persist state to a database
+    - [x] Blocks
+    - [x] Address balance
+    - [x] Pending transactions
+    - [x] Representatives (voting weight)
+    - [ ] Votes
+  - [x] Block verification
+  - [ ] Fork resolution
+    - [ ] Block rollback
+  - [ ] RPC interface
+- [ ] Wallet
+  - [x] Data structures
+    - [x] Balance
+    - [x] Address
+    - [x] Seed
+  - [ ] Persist state to an encrypted file
+  - [ ] RPC interface
+- [ ] Tests
+
 ## Compiling
 
 Go 1.8 or newer is required.
