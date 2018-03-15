@@ -43,7 +43,7 @@ type Options struct {
 	EnableIPv6   bool
 	EnableVoting bool
 	MaxPeers     int
-	Peers        []*net.UDPAddr
+	Peers        []string
 }
 
 func New(ledger *store.Ledger, options Options) (*Node, error) {
@@ -79,7 +79,12 @@ func New(ledger *store.Ledger, options Options) (*Node, error) {
 }
 
 func (n *Node) Run() error {
-	for _, addr := range n.options.Peers {
+	for _, s := range n.options.Peers {
+		addr, err := net.ResolveUDPAddr("udp", s)
+		if err != nil {
+			return err
+		}
+
 		if _, err := n.addPeer(addr); err != nil {
 			return err
 		}

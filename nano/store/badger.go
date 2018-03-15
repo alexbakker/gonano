@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"os"
 
 	"github.com/alexbakker/gonano/nano/block"
 	"github.com/alexbakker/gonano/nano/wallet"
@@ -40,6 +41,15 @@ func NewBadgerStore(dir string) (*BadgerStore, error) {
 	opts.Dir = dir
 	opts.ValueDir = dir
 	opts.ValueLogLoadingMode = badgerOpts.FileIO
+
+	if _, err := os.Stat(dir); err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+		if err := os.Mkdir(dir, 0700); err != nil {
+			return nil, err
+		}
+	}
 
 	db, err := badger.Open(opts)
 	if err != nil {

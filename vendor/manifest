@@ -51,6 +51,22 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/spf13/cobra",
+			"repository": "https://github.com/spf13/cobra",
+			"vcs": "git",
+			"revision": "c6c44e6fdcc30161c7f4480754da7230d01c06e3",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/spf13/pflag",
+			"repository": "https://github.com/spf13/pflag",
+			"vcs": "git",
+			"revision": "ee5fd03fd6acfd43e44aea0b4135958546ed8e73",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "golang.org/x/crypto/blake2b",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",

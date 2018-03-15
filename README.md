@@ -80,6 +80,7 @@ Run ``make test`` to run the tests.
 
 This project directly depends on the following packages:
 - [badger](https://github.com/dgraph-io/badger) - Fast key-value DB in Go
+- [cobra](https://github.com/spf13/cobra) - A Commander for modern Go CLI interactions
 - [blake2b and ed25519](https://go.googlesource.com/crypto) - Go supplementary
   cryptography libraries
 - [uint128](https://github.com/cockroachdb/cockroach/blob/master/pkg/util/uint128)
