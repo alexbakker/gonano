@@ -4,9 +4,10 @@ This document describes the network protocol used by the Nano cryptocurrency. It
 is licensed under CC BY-SA.
 
 At the time of writing, there is no official protocol documentation. As such,
-the source code of the C++ implementation, which is also essentially
-undocumented, was studied to obtain information about the protocol. Naming has
-been kept similar to the C++ implementation to avoid confusion.
+the source code of [the C++
+implementation](https://github.com/nanocurrency/raiblocks), which is also
+essentially undocumented, was studied to obtain information about the protocol.
+Naming has been kept similar to the C++ implementation to avoid confusion.
 
 Be sure to read and understand the whitepaper first:
 https://nano.org/en/whitepaper. The basic concepts of Nano will not be covered
