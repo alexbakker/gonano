@@ -35,31 +35,33 @@ var (
 )
 
 // Address represents a Nano address.
-type Address ed25519.PublicKey
+type Address [AddressSize]byte
 
 // ParseAddress parses the given Nano address string to a public key.
 func ParseAddress(s string) (Address, error) {
 	if len(s) != AddressLen {
-		return nil, ErrAddressLen
+		return Address{}, ErrAddressLen
 	}
 
 	if !strings.HasPrefix(s, AddressPrefix) {
-		return nil, ErrAddressPrefix
+		return Address{}, ErrAddressPrefix
 	}
 
 	key, err := AddressEncoding.DecodeString("1111" + s[4:56])
 	if err != nil {
-		return nil, ErrAddressEncoding
+		return Address{}, ErrAddressEncoding
 	}
 
 	checksum, err := AddressEncoding.DecodeString(s[56:])
 	if err != nil {
-		return nil, ErrAddressEncoding
+		return Address{}, ErrAddressEncoding
 	}
 
-	address := Address(ed25519.PublicKey(key[3:]))
+	var address Address
+	copy(address[:], key[3:])
+
 	if !bytes.Equal(address.Checksum(), checksum) {
-		return nil, ErrAddressChecksum
+		return Address{}, ErrAddressChecksum
 	}
 
 	return address, nil
@@ -72,13 +74,13 @@ func (a Address) Checksum() []byte {
 		panic(err)
 	}
 
-	hash.Write(a)
+	hash.Write(a[:])
 	return util.ReverseBytes(hash.Sum(nil))
 }
 
 // String implements the fmt.Stringer interface.
 func (a Address) String() string {
-	key := append([]byte{0, 0, 0}, a...)
+	key := append([]byte{0, 0, 0}, a[:]...)
 	encodedKey := AddressEncoding.EncodeToString(key)[4:]
 	encodedChecksum := AddressEncoding.EncodeToString(a.Checksum())
 
@@ -91,7 +93,7 @@ func (a Address) String() string {
 
 // Verify reports whether the given signature is valid for the given data.
 func (a Address) Verify(data []byte, signature []byte) bool {
-	return ed25519.Verify(ed25519.PublicKey(a), data, signature)
+	return ed25519.Verify(ed25519.PublicKey(a[:]), data, signature)
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.

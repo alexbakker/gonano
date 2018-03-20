@@ -26,7 +26,7 @@ func TestWalletAddress(t *testing.T) {
 	}
 
 	zeroKey := util.MustDecodeHex("0000000000000000000000000000000000000000000000000000000000000000")
-	if !bytes.Equal(address, zeroKey) {
+	if !bytes.Equal(address[:], zeroKey) {
 		t.Fatalf("address is not zero")
 	}
 }

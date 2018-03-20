@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/alexbakker/gonano/nano/crypto/ed25519"
 	"github.com/alexbakker/gonano/nano/wallet"
 )
 
@@ -20,7 +19,7 @@ func (v *Vote) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	var err error
-	if _, err = buf.Write(v.Address); err != nil {
+	if _, err = buf.Write(v.Address[:]); err != nil {
 		return nil, err
 	}
 
@@ -47,8 +46,7 @@ func (v *Vote) MarshalBinary() ([]byte, error) {
 func (v *Vote) UnmarshalBinary(data []byte) error {
 	reader := bytes.NewReader(data)
 
-	v.Address = make(wallet.Address, ed25519.PublicKeySize)
-	if _, err := reader.Read(v.Address); err != nil {
+	if _, err := reader.Read(v.Address[:]); err != nil {
 		return err
 	}
 

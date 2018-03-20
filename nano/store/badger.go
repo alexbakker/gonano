@@ -379,7 +379,7 @@ func (t *BadgerStoreTxn) AddAddress(address wallet.Address, info *AddressInfo) e
 
 	var key [1 + wallet.AddressSize]byte
 	key[0] = idPrefixAddress
-	copy(key[1:], address)
+	copy(key[1:], address[:])
 
 	// never overwrite implicitly
 	if _, err := t.txn.Get(key[:]); err != nil && err != badger.ErrKeyNotFound {
@@ -394,7 +394,7 @@ func (t *BadgerStoreTxn) AddAddress(address wallet.Address, info *AddressInfo) e
 func (t *BadgerStoreTxn) GetAddress(address wallet.Address) (*AddressInfo, error) {
 	var key [1 + wallet.AddressSize]byte
 	key[0] = idPrefixAddress
-	copy(key[1:], address)
+	copy(key[1:], address[:])
 
 	item, err := t.txn.Get(key[:])
 	if err != nil {
@@ -422,7 +422,7 @@ func (t *BadgerStoreTxn) UpdateAddress(address wallet.Address, info *AddressInfo
 
 	var key [1 + wallet.AddressSize]byte
 	key[0] = idPrefixAddress
-	copy(key[1:], address)
+	copy(key[1:], address[:])
 
 	return t.set(key[:], infoBytes)
 }
@@ -446,7 +446,7 @@ func (t *BadgerStoreTxn) AddFrontier(frontier *block.Frontier) error {
 		return errors.New("frontier already exists")
 	}
 
-	return t.set(key[:], frontier.Address)
+	return t.set(key[:], frontier.Address[:])
 }
 
 func (t *BadgerStoreTxn) GetFrontier(hash block.Hash) (*block.Frontier, error) {
@@ -459,12 +459,14 @@ func (t *BadgerStoreTxn) GetFrontier(hash block.Hash) (*block.Frontier, error) {
 		return nil, err
 	}
 
-	address, err := item.ValueCopy(nil)
+	address, err := item.Value()
 	if err != nil {
 		return nil, err
 	}
 
-	return &block.Frontier{Address: address, Hash: hash}, nil
+	frontier := block.Frontier{Hash: hash}
+	copy(frontier.Address[:], address)
+	return &frontier, nil
 }
 
 func (t *BadgerStoreTxn) GetFrontiers() ([]*block.Frontier, error) {
@@ -475,13 +477,13 @@ func (t *BadgerStoreTxn) GetFrontiers() ([]*block.Frontier, error) {
 	prefix := [...]byte{idPrefixFrontier}
 	for it.Seek(prefix[:]); it.ValidForPrefix(prefix[:]); it.Next() {
 		item := it.Item()
-		address, err := item.ValueCopy(nil)
+		address, err := item.Value()
 		if err != nil {
 			return nil, err
 		}
 
 		var frontier block.Frontier
-		frontier.Address = address
+		copy(frontier.Address[:], address)
 		copy(frontier.Hash[:], item.Key())
 
 		frontiers = append(frontiers, &frontier)
@@ -521,7 +523,7 @@ func (t *BadgerStoreTxn) AddPending(destination wallet.Address, hash block.Hash,
 
 	var key [1 + PendingKeySize]byte
 	key[0] = idPrefixPending
-	copy(key[1:], destination)
+	copy(key[1:], destination[:])
 	copy(key[1+wallet.AddressSize:], hash[:])
 
 	// never overwrite implicitly
@@ -537,7 +539,7 @@ func (t *BadgerStoreTxn) AddPending(destination wallet.Address, hash block.Hash,
 func (t *BadgerStoreTxn) GetPending(destination wallet.Address, hash block.Hash) (*Pending, error) {
 	var key [1 + PendingKeySize]byte
 	key[0] = idPrefixPending
-	copy(key[1:], destination)
+	copy(key[1:], destination[:])
 	copy(key[1+wallet.AddressSize:], hash[:])
 
 	item, err := t.txn.Get(key[:])
@@ -561,7 +563,7 @@ func (t *BadgerStoreTxn) GetPending(destination wallet.Address, hash block.Hash)
 func (t *BadgerStoreTxn) DeletePending(destination wallet.Address, hash block.Hash) error {
 	var key [1 + PendingKeySize]byte
 	key[0] = idPrefixPending
-	copy(key[1:], destination)
+	copy(key[1:], destination[:])
 	copy(key[1+wallet.AddressSize:], hash[:])
 	return t.delete(key[:])
 }
@@ -569,7 +571,7 @@ func (t *BadgerStoreTxn) DeletePending(destination wallet.Address, hash block.Ha
 func (t *BadgerStoreTxn) setRepresentation(address wallet.Address, amount wallet.Balance) error {
 	var key [1 + wallet.AddressSize]byte
 	key[0] = idPrefixRepresentation
-	copy(key[1:], address)
+	copy(key[1:], address[:])
 
 	amountBytes, err := amount.MarshalBinary()
 	if err != nil {
@@ -600,7 +602,7 @@ func (t *BadgerStoreTxn) SubRepresentation(address wallet.Address, amount wallet
 func (t *BadgerStoreTxn) GetRepresentation(address wallet.Address) (wallet.Balance, error) {
 	var key [1 + wallet.AddressSize]byte
 	key[0] = idPrefixRepresentation
-	copy(key[1:], address)
+	copy(key[1:], address[:])
 
 	item, err := t.txn.Get(key[:])
 	if err != nil {

@@ -20,5 +20,7 @@ func NewAccount(key ed25519.PrivateKey) *Account {
 
 // Address returns the public key of this account as an Address type.
 func (a *Account) Address() Address {
-	return Address(a.pubKey)
+	var address Address
+	copy(address[:], a.pubKey)
+	return address
 }

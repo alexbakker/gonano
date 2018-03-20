@@ -33,7 +33,7 @@ func (s *BulkPullPacket) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	var err error
-	if _, err = buf.Write(s.Address); err != nil {
+	if _, err = buf.Write(s.Address[:]); err != nil {
 		return nil, err
 	}
 
@@ -48,8 +48,7 @@ func (s *BulkPullPacket) MarshalBinary() ([]byte, error) {
 func (s *BulkPullPacket) UnmarshalBinary(data []byte) error {
 	reader := bytes.NewReader(data)
 
-	s.Address = make(wallet.Address, wallet.AddressSize)
-	if _, err := reader.Read(s.Address); err != nil {
+	if _, err := reader.Read(s.Address[:]); err != nil {
 		return err
 	}
 

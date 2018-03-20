@@ -10,8 +10,8 @@ import (
 var (
 	openBlock = &OpenBlock{
 		SourceHash:     util.MustDecodeHex32("e89208dd038fbb269987689621d52292ae9c35941a7484756ecced92a65093ba"),
-		Representative: util.MustDecodeHex("e89208dd038fbb269987689621d52292ae9c35941a7484756ecced92a65093ba"),
-		Address:        util.MustDecodeHex("e89208dd038fbb269987689621d52292ae9c35941a7484756ecced92a65093ba"),
+		Representative: util.MustDecodeHex32("e89208dd038fbb269987689621d52292ae9c35941a7484756ecced92a65093ba"),
+		Address:        util.MustDecodeHex32("e89208dd038fbb269987689621d52292ae9c35941a7484756ecced92a65093ba"),
 		Common: CommonBlock{
 			Work:      0x62f05417dd3fb691,
 			Signature: util.MustDecodeHex64("9F0C933C8ADE004D808EA1985FA746A7E95BA2A38F867640F53EC8F180BDFE9E2C1268DEAD7C2664F356E37ABA362BC58E46DBA03E523A7B5A19E4B6EB12BB02"),
@@ -19,7 +19,7 @@ var (
 	}
 	sendBlock = &SendBlock{
 		PreviousHash: util.MustDecodeHex32("4270F4FB3A820FE81827065F967A9589DF5CA860443F812D21ECE964AC359E05"),
-		Destination:  util.MustDecodeHex("0000000000000000000000000000000000000000000000000000000000000000"),
+		Destination:  util.MustDecodeHex32("0000000000000000000000000000000000000000000000000000000000000000"),
 		Balance:      wallet.ParseBalanceInts(0, 0),
 		Common: CommonBlock{
 			Work:      0x7202df8a7c380578,
@@ -36,7 +36,7 @@ var (
 	}
 	changeBlock = &ChangeBlock{
 		PreviousHash:   util.MustDecodeHex32("3abd41f575184a02b28f98f1c71684c8f6adc0f7334eb32e8232cdad65609e23"),
-		Representative: util.MustDecodeHex("7d5c67cf17432c5c88fa739a3cc88f894da3eec7b977a804780977cae35fa5a8"),
+		Representative: util.MustDecodeHex32("7d5c67cf17432c5c88fa739a3cc88f894da3eec7b977a804780977cae35fa5a8"),
 		Common: CommonBlock{
 			Work:      0x8f48c0b00946163c,
 			Signature: util.MustDecodeHex64("1009a0c2fbc189dc41d13daa9d7a6e1ab2d6c4e06200aeca1b7ae0c27bf454b2c60f446df0d69a877d3a98e3128ab3442058172fbd965024519630ace93b670e"),

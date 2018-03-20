@@ -21,7 +21,7 @@ func (f *Frontier) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	var err error
-	if _, err = buf.Write(f.Address); err != nil {
+	if _, err = buf.Write(f.Address[:]); err != nil {
 		return nil, err
 	}
 
@@ -37,8 +37,7 @@ func (f *Frontier) UnmarshalBinary(data []byte) error {
 	reader := bytes.NewReader(data)
 
 	var err error
-	f.Address = make(wallet.Address, wallet.AddressSize)
-	if _, err = reader.Read(f.Address); err != nil {
+	if _, err = reader.Read(f.Address[:]); err != nil {
 		return err
 	}
 

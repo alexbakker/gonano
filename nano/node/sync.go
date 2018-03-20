@@ -194,7 +194,7 @@ func (s *FrontierSyncer) ReadNext(r io.Reader) (bool, error) {
 // WriteNext implements the Syncer interface.
 func (s *FrontierSyncer) WriteNext(w io.Writer) (done bool, err error) {
 	packet := proto.FrontierReqPacket{
-		StartAddress: make(wallet.Address, wallet.AddressSize),
+		StartAddress: wallet.Address{},
 		Age:          math.MaxUint32,
 		Count:        math.MaxUint32,
 	}

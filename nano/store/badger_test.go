@@ -7,19 +7,15 @@ import (
 
 	"github.com/alexbakker/gonano/nano/block"
 	"github.com/alexbakker/gonano/nano/crypto/random"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 func generateBlock(t testing.TB) block.Block {
-	blk := &block.OpenBlock{
-		Representative: make(wallet.Address, wallet.AddressSize),
-		Address:        make(wallet.Address, wallet.AddressSize),
-	}
-	random.Bytes(blk.Representative)
-	random.Bytes(blk.Address)
+	var blk block.OpenBlock
+	random.Bytes(blk.Representative[:])
+	random.Bytes(blk.Address[:])
 	random.Bytes(blk.SourceHash[:])
 	random.Bytes(blk.Common.Signature[:])
-	return blk
+	return &blk
 }
 
 func TestBadgerWrite(t *testing.T) {

@@ -25,7 +25,7 @@ func (p *Pending) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	var err error
-	if _, err = buf.Write(p.Address); err != nil {
+	if _, err = buf.Write(p.Address[:]); err != nil {
 		return nil, err
 	}
 
@@ -40,8 +40,7 @@ func (p *Pending) MarshalBinary() ([]byte, error) {
 func (p *Pending) UnmarshalBinary(data []byte) error {
 	reader := bytes.NewReader(data)
 
-	p.Address = make(wallet.Address, wallet.AddressSize)
-	if _, err := reader.Read(p.Address); err != nil {
+	if _, err := reader.Read(p.Address[:]); err != nil {
 		return err
 	}
 

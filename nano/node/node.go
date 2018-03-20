@@ -165,11 +165,11 @@ func (n *Node) syncFontiers() error {
 			break
 		}
 
-		fmt.Printf("requesting frontiers from: %s\n", peer.Addr)
+		fmt.Printf("requesting frontiers from %s\n", peer.Addr)
 
 		syncer := NewFrontierSyncer(n.processFrontier)
 		if err = Sync(syncer, peer); err == nil {
-			fmt.Printf("received frontiers: %d\n", len(n.frontiers))
+			fmt.Printf("received %d out of sync frontiers from %s\n", len(n.frontiers), peer.Addr)
 			syncer := NewBulkPullSyncer(n.processFrontierBlocks, n.frontiers)
 			if err := Sync(syncer, peer); err == nil {
 				if count, err := n.ledger.CountBlocks(); err == nil {
@@ -201,24 +201,12 @@ func (n *Node) syncBlocks() error {
 }
 
 func (n *Node) processFrontier(frontier *block.Frontier) {
-	//fmt.Printf("frontier: %+v\n", frontier)
 	n.frontiers = append(n.frontiers, frontier)
 }
 
 func (n *Node) processFrontierBlocks(blocks []block.Block) {
 	if err := n.ledger.AddBlocks(blocks); err != nil {
 		//fmt.Printf("error adding block: %s\n", err)
-	}
-}
-
-func (n *Node) processBlocks(blocks []block.Block) {
-	/*if err := n.ledger.AddBlocks(blocks); err != nil { fmt.Printf("error
-		processing blocks: %s\n", err)
-		return
-	}*/
-
-	for _, blk := range blocks {
-		fmt.Printf("block (%s) %s: %+v\n", block.Name(blk.ID()), blk.Hash(), blk)
 	}
 }
 
@@ -313,8 +301,12 @@ func (n *Node) handleKeepAlivePacket(addr *net.UDPAddr, packet *proto.KeepAliveP
 
 	// add any peers we don't already know about to our list
 	for _, peerAddr := range packet.Peers {
-		if n.peers.Full() || n.peers.Get(peerAddr) != nil {
+		if n.peers.Full() {
 			break
+		}
+
+		if n.peers.Get(peerAddr) != nil {
+			continue
 		}
 
 		if _, err := n.addPeer(peerAddr); err != nil {

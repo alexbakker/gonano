@@ -494,7 +494,12 @@ func (l *Ledger) processBlock(txn StoreTxn, blk block.Block) error {
 
 func (l *Ledger) AddBlock(blk block.Block) error {
 	return l.db.Update(func(txn StoreTxn) error {
-		return l.addBlock(txn, blk)
+		err := l.processBlock(txn, blk)
+		if err != nil && err != ErrUnchecked {
+			fmt.Printf("try add err: %s\n", err)
+		}
+
+		return nil
 	})
 }
 
@@ -559,12 +564,12 @@ func (l *Ledger) GetBalance(address wallet.Address) (wallet.Balance, error) {
 func (l *Ledger) getRepresentative(txn StoreTxn, address wallet.Address) (wallet.Address, error) {
 	info, err := txn.GetAddress(address)
 	if err != nil {
-		return nil, err
+		return wallet.Address{}, err
 	}
 
 	blk, err := txn.GetBlock(info.RepBlock)
 	if err != nil {
-		return nil, err
+		return wallet.Address{}, err
 	}
 
 	switch b := blk.(type) {
@@ -573,6 +578,6 @@ func (l *Ledger) getRepresentative(txn StoreTxn, address wallet.Address) (wallet
 	case *block.ChangeBlock:
 		return b.Representative, nil
 	default:
-		return nil, errors.New("bad representative block type")
+		return wallet.Address{}, errors.New("bad representative block type")
 	}
 }

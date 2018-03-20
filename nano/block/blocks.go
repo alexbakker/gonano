@@ -144,11 +144,11 @@ func (b *OpenBlock) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	if _, err = buf.Write(b.Representative); err != nil {
+	if _, err = buf.Write(b.Representative[:]); err != nil {
 		return nil, err
 	}
 
-	if _, err = buf.Write(b.Address); err != nil {
+	if _, err = buf.Write(b.Address[:]); err != nil {
 		return nil, err
 	}
 
@@ -172,13 +172,11 @@ func (b *OpenBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	b.Representative = make([]byte, wallet.AddressSize)
-	if _, err = reader.Read(b.Representative); err != nil {
+	if _, err = reader.Read(b.Representative[:]); err != nil {
 		return err
 	}
 
-	b.Address = make([]byte, wallet.AddressSize)
-	if _, err = reader.Read(b.Address); err != nil {
+	if _, err = reader.Read(b.Address[:]); err != nil {
 		return err
 	}
 
@@ -191,7 +189,7 @@ func (b *OpenBlock) UnmarshalBinary(data []byte) error {
 }
 
 func (b *OpenBlock) Hash() Hash {
-	return hashBytes(b.SourceHash[:], b.Representative, b.Address)
+	return hashBytes(b.SourceHash[:], b.Representative[:], b.Address[:])
 }
 
 func (b *OpenBlock) Root() Hash {
@@ -211,9 +209,7 @@ func (b *OpenBlock) ID() byte {
 }
 
 func (b *OpenBlock) Valid() bool {
-	var hash Hash
-	copy(hash[:], b.Address)
-	return b.Common.Work.Valid(hash)
+	return b.Common.Work.Valid(Hash(b.Address))
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -225,7 +221,7 @@ func (b *SendBlock) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	if _, err = buf.Write(b.Destination); err != nil {
+	if _, err = buf.Write(b.Destination[:]); err != nil {
 		return nil, err
 	}
 
@@ -253,8 +249,7 @@ func (b *SendBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	b.Destination = make([]byte, wallet.AddressSize)
-	if _, err = reader.Read(b.Destination); err != nil {
+	if _, err = reader.Read(b.Destination[:]); err != nil {
 		return err
 	}
 
@@ -275,7 +270,7 @@ func (b *SendBlock) UnmarshalBinary(data []byte) error {
 }
 
 func (b *SendBlock) Hash() Hash {
-	return hashBytes(b.PreviousHash[:], b.Destination, b.Balance.Bytes(binary.BigEndian))
+	return hashBytes(b.PreviousHash[:], b.Destination[:], b.Balance.Bytes(binary.BigEndian))
 }
 
 func (b *SendBlock) Root() Hash {
@@ -376,7 +371,7 @@ func (b *ChangeBlock) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	if _, err = buf.Write(b.Representative); err != nil {
+	if _, err = buf.Write(b.Representative[:]); err != nil {
 		return nil, err
 	}
 
@@ -400,8 +395,7 @@ func (b *ChangeBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	b.Representative = make([]byte, wallet.AddressSize)
-	if _, err = reader.Read(b.Representative); err != nil {
+	if _, err = reader.Read(b.Representative[:]); err != nil {
 		return err
 	}
 
@@ -414,7 +408,7 @@ func (b *ChangeBlock) UnmarshalBinary(data []byte) error {
 }
 
 func (b *ChangeBlock) Hash() Hash {
-	return hashBytes(b.PreviousHash[:], b.Representative)
+	return hashBytes(b.PreviousHash[:], b.Representative[:])
 }
 
 func (b *ChangeBlock) Root() Hash {
