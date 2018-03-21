@@ -9,6 +9,7 @@ import (
 	"github.com/alexbakker/gonano/nano/block"
 	"github.com/alexbakker/gonano/nano/node/proto"
 	"github.com/alexbakker/gonano/nano/store"
+	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 var (
@@ -34,7 +35,7 @@ type Node struct {
 	ledger  *store.Ledger
 	stop    chan struct{}
 
-	frontiers []*block.Frontier
+	frontiers map[wallet.Address]block.Hash
 }
 
 type Options struct {
@@ -201,7 +202,18 @@ func (n *Node) syncBlocks() error {
 }
 
 func (n *Node) processFrontier(frontier *block.Frontier) {
-	n.frontiers = append(n.frontiers, frontier)
+	/*head, err := n.ledger.GetFrontier(frontier.Address)
+	if err != nil && err != store.ErrNotFound {
+		fmt.Printf("error querying ledger: %s\n", err)
+		return
+	}*/
+
+	hash, ok := n.frontiers[frontier.Address]
+	if ok && hash == frontier.Hash {
+		return
+	}
+
+	n.frontiers[frontier.Address] = frontier.Hash
 }
 
 func (n *Node) processFrontierBlocks(blocks []block.Block) {

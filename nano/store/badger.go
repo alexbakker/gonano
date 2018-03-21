@@ -434,6 +434,21 @@ func (t *BadgerStoreTxn) DeleteAddress(address wallet.Address) error {
 	return t.delete(key[:])
 }
 
+func (t *BadgerStoreTxn) HasAddress(address wallet.Address) (bool, error) {
+	var key [1 + block.HashSize]byte
+	key[0] = idPrefixBlock
+	copy(key[1:], address[:])
+
+	if _, err := t.txn.Get(key[:]); err != nil {
+		if err == badger.ErrKeyNotFound {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (t *BadgerStoreTxn) AddFrontier(frontier *block.Frontier) error {
 	var key [1 + block.HashSize]byte
 	key[0] = idPrefixFrontier

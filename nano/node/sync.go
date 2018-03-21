@@ -42,7 +42,7 @@ type FrontierSyncer struct {
 
 type BulkPullSyncer struct {
 	blocks     []block.Block
-	frontiers  []*block.Frontier
+	addrs      []wallet.Address
 	writeIndex int
 	readIndex  int
 	cb         BulkPullSyncerFunc
@@ -58,11 +58,16 @@ func NewFrontierSyncer(cb FrontierSyncerFunc) *FrontierSyncer {
 	return &FrontierSyncer{cb: cb}
 }
 
-func NewBulkPullSyncer(cb BulkPullSyncerFunc, frontiers []*block.Frontier) *BulkPullSyncer {
+func NewBulkPullSyncer(cb BulkPullSyncerFunc, frontiers map[wallet.Address]block.Hash) *BulkPullSyncer {
+	addrs := make([]wallet.Address, 0, len(frontiers))
+	for addr := range frontiers {
+		addrs = append(addrs, addr)
+	}
+
 	return &BulkPullSyncer{
-		cb:        cb,
-		frontiers: frontiers,
-		blocks:    make([]block.Block, 0, syncCacheSize),
+		cb:     cb,
+		addrs:  addrs,
+		blocks: make([]block.Block, 0, syncCacheSize),
 	}
 }
 
@@ -213,7 +218,7 @@ func (s *BulkPullSyncer) ReadNext(r io.Reader) (bool, error) {
 	if err != nil {
 		if err == block.ErrNotABlock {
 			s.readIndex++
-			if s.readIndex >= len(s.frontiers) {
+			if s.readIndex >= len(s.addrs) {
 				return true, nil
 			}
 			return false, nil
@@ -232,10 +237,10 @@ func (s *BulkPullSyncer) ReadNext(r io.Reader) (bool, error) {
 
 // WriteNext implements the Syncer interface.
 func (s *BulkPullSyncer) WriteNext(w io.Writer) (done bool, err error) {
-	if s.writeIndex < len(s.frontiers) {
+	if s.writeIndex < len(s.addrs) {
 		// request the chain of the next frontier
 		packet := proto.BulkPullPacket{
-			Address: s.frontiers[s.writeIndex].Address,
+			Address: s.addrs[s.writeIndex],
 		}
 
 		s.writeIndex++

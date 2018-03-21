@@ -52,6 +52,7 @@ type StoreTxn interface {
 	GetAddress(address wallet.Address) (*AddressInfo, error)
 	UpdateAddress(address wallet.Address, info *AddressInfo) error
 	DeleteAddress(address wallet.Address) error
+	HasAddress(address wallet.Address) (bool, error)
 
 	AddFrontier(frontier *block.Frontier) error
 	GetFrontier(hash block.Hash) (*block.Frontier, error)

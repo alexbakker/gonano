@@ -15,6 +15,7 @@ var (
 	ErrMissingSource   = errors.New("source block does not exist")
 	ErrUnchecked       = errors.New("block was added to the unchecked list")
 	ErrFork            = errors.New("a fork was detected")
+	ErrNotFound        = errors.New("item not found in the store")
 )
 
 type Ledger struct {
@@ -559,6 +560,30 @@ func (l *Ledger) GetBalance(address wallet.Address) (wallet.Balance, error) {
 	})
 
 	return balance, err
+}
+
+func (l *Ledger) GetFrontier(address wallet.Address) (block.Hash, error) {
+	var hash block.Hash
+
+	err := l.db.View(func(txn StoreTxn) error {
+		found, err := txn.HasAddress(address)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return ErrNotFound
+		}
+
+		info, err := txn.GetAddress(address)
+		if err != nil {
+			return nil
+		}
+
+		hash = info.HeadBlock
+		return nil
+	})
+
+	return hash, err
 }
 
 func (l *Ledger) getRepresentative(txn StoreTxn, address wallet.Address) (wallet.Address, error) {
