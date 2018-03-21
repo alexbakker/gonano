@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"bytes"
 	"net"
 )
 
@@ -65,7 +64,7 @@ func (p *Proto) UnmarshalPacket(data []byte) (Packet, error) {
 
 	// check the magic
 	// todo: check version
-	if !bytes.Equal(header.Magic[:], p.magic[:]) {
+	if header.Magic != p.magic {
 		return nil, ErrBadMagic
 	}
 

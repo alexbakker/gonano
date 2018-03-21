@@ -169,7 +169,7 @@ func (l *Ledger) addSendBlock(txn StoreTxn, blk *block.SendBlock) error {
 	if err != nil {
 		return err
 	}
-	if !info.HeadBlock.Equal(frontier.Hash) {
+	if info.HeadBlock != frontier.Hash {
 		return errors.New("unexpected head block for account")
 	}
 
@@ -240,7 +240,7 @@ func (l *Ledger) addReceiveBlock(txn StoreTxn, blk *block.ReceiveBlock) error {
 	if err != nil {
 		return err
 	}
-	if !info.HeadBlock.Equal(frontier.Hash) {
+	if info.HeadBlock != frontier.Hash {
 		return errors.New("unexpected head block for account")
 	}
 
@@ -307,7 +307,7 @@ func (l *Ledger) addChangeBlock(txn StoreTxn, blk *block.ChangeBlock) error {
 	if err != nil {
 		return err
 	}
-	if !info.HeadBlock.Equal(frontier.Hash) {
+	if info.HeadBlock != frontier.Hash {
 		return errors.New("unexpected head block for account")
 	}
 

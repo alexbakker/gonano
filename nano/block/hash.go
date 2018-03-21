@@ -1,7 +1,6 @@
 package block
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 
@@ -21,10 +20,6 @@ func (h Hash) IsZero() bool {
 		}
 	}
 	return true
-}
-
-func (h Hash) Equal(hash Hash) bool {
-	return bytes.Equal(h[:], hash[:])
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
