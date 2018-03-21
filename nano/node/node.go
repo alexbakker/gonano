@@ -69,13 +69,14 @@ func New(ledger *store.Ledger, options Options) (*Node, error) {
 	}
 
 	return &Node{
-		proto:   proto.New(options.Network),
-		udpConn: udpConn,
-		tcpConn: tcpConn,
-		options: options,
-		peers:   NewPeerList(options.MaxPeers),
-		ledger:  ledger,
-		stop:    make(chan struct{}),
+		proto:     proto.New(options.Network),
+		udpConn:   udpConn,
+		tcpConn:   tcpConn,
+		options:   options,
+		peers:     NewPeerList(options.MaxPeers),
+		ledger:    ledger,
+		stop:      make(chan struct{}),
+		frontiers: map[wallet.Address]block.Hash{},
 	}, nil
 }
 
