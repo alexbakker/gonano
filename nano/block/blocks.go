@@ -17,6 +17,7 @@ const (
 	idBlockReceive
 	idBlockOpen
 	idBlockChange
+	idBlockState
 )
 
 var (
@@ -30,15 +31,17 @@ var (
 		idBlockReceive:   "receive",
 		idBlockOpen:      "open",
 		idBlockChange:    "change",
+		idBlockState:     "state",
 	}
 )
 
 const (
 	blockSizeCommon  = SignatureSize + 8
 	blockSizeOpen    = blockSizeCommon + HashSize + wallet.AddressSize*2
-	blockSizeSend    = blockSizeCommon + HashSize + wallet.AddressSize + 16
+	blockSizeSend    = blockSizeCommon + HashSize + wallet.AddressSize + wallet.BalanceSize
 	blockSizeReceive = blockSizeCommon + HashSize*2
 	blockSizeChange  = blockSizeCommon + HashSize + wallet.AddressSize
+	blockSizeState   = blockSizeCommon + HashSize*2 + wallet.AddressSize*2 + wallet.BalanceSize
 )
 
 type CommonBlock struct {
@@ -80,6 +83,15 @@ type ReceiveBlock struct {
 type ChangeBlock struct {
 	PreviousHash   Hash           `json:"previous"`
 	Representative wallet.Address `json:"representative"`
+	Common         CommonBlock    `json:"common"`
+}
+
+type StateBlock struct {
+	Address        wallet.Address `json:"address"`
+	PreviousHash   Hash           `json:"previous"`
+	Representative wallet.Address `json:"representative"`
+	Balance        wallet.Balance `json:"balance"`
+	Link           [HashSize]byte `json:"link"`
 	Common         CommonBlock    `json:"common"`
 }
 
@@ -429,4 +441,109 @@ func (b *ChangeBlock) ID() byte {
 
 func (b *ChangeBlock) Valid() bool {
 	return b.Common.Work.Valid(b.PreviousHash)
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface.
+func (b *StateBlock) MarshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	var err error
+	if _, err = buf.Write(b.Address[:]); err != nil {
+		return nil, err
+	}
+
+	if _, err = buf.Write(b.PreviousHash[:]); err != nil {
+		return nil, err
+	}
+
+	if _, err = buf.Write(b.Representative[:]); err != nil {
+		return nil, err
+	}
+
+	if _, err = buf.Write(b.Balance.Bytes(binary.BigEndian)); err != nil {
+		return nil, err
+	}
+
+	if _, err = buf.Write(b.Link[:]); err != nil {
+		return nil, err
+	}
+
+	commonBytes, err := b.Common.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	if _, err = buf.Write(commonBytes); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+func (b *StateBlock) UnmarshalBinary(data []byte) error {
+	reader := bytes.NewReader(data)
+
+	var err error
+	if _, err = reader.Read(b.Address[:]); err != nil {
+		return err
+	}
+
+	if _, err = reader.Read(b.PreviousHash[:]); err != nil {
+		return err
+	}
+
+	if _, err = reader.Read(b.Representative[:]); err != nil {
+		return err
+	}
+
+	balance := make([]byte, wallet.BalanceSize)
+	if _, err = reader.Read(balance); err != nil {
+		return err
+	}
+	if err = b.Balance.UnmarshalBinary(balance); err != nil {
+		return err
+	}
+
+	if _, err = reader.Read(b.Link[:]); err != nil {
+		return err
+	}
+
+	commonBytes := make([]byte, blockSizeCommon)
+	if _, err = reader.Read(commonBytes); err != nil {
+		return err
+	}
+
+	return b.Common.UnmarshalBinary(commonBytes)
+}
+
+func (b *StateBlock) Hash() Hash {
+	return hashBytes(b.Address[:], b.PreviousHash[:], b.Representative[:], b.Balance.Bytes(binary.BigEndian), b.Link[:])
+}
+
+func (b *StateBlock) Root() Hash {
+	if !b.PreviousHash.IsZero() {
+		return b.PreviousHash
+	}
+
+	return b.Link
+}
+
+func (b *StateBlock) Signature() Signature {
+	return b.Common.Signature
+}
+
+func (b *StateBlock) Size() int {
+	return blockSizeState
+}
+
+func (b *StateBlock) ID() byte {
+	return idBlockState
+}
+
+func (b *StateBlock) Valid() bool {
+	if !b.PreviousHash.IsZero() {
+		return b.Common.Work.Valid(b.PreviousHash)
+	}
+
+	return b.Common.Work.Valid(Hash(b.Address))
 }

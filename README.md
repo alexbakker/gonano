@@ -39,13 +39,13 @@ The goals of this project are to:
   - [x] Pinging
   - [ ] (Re)broadcasting blocks
   - [ ] Voting
-- [ ] Blocks
-  - [ ] Data structures
+- [x] Blocks
+  - [x] Data structures
     - [x] Send
     - [x] Receive
     - [x] Open
     - [x] Change
-    - [ ] Universal
+    - [x] State
   - [x] Proof of Work
 - [ ] Node
   - [ ] Persist state to a database

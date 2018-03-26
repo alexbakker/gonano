@@ -108,8 +108,8 @@ https://github.com/nanocurrency/raiblocks/issues/673. So for now, it's best to
 always send 8 peers. If less than 8 peers are available, the rest of the list is
 filled with unspecified ip's and zeroed ports.
 
-In the C++ implementation the default interval is 60 seconds.
-After 5 minutes a node is considered not alive anymore.
+In the C++ implementation the default interval is 60 seconds. After 5 minutes a
+node is considered not alive anymore.
 
 #### Publish
 
@@ -209,6 +209,7 @@ There are two different modes.
 | `0x03` | Receive    |
 | `0x04` | Open       |
 | `0x05` | Change     |
+| `0x06` | State      |
 
 Every block contains a proof of work value. Read the Work chapter to learn more
 about it.
@@ -278,6 +279,27 @@ A change block is created when an account wants to change its representative.
 
 The hash of this block is calculated by concatenating [Previous block hash,
 Representative public key] and hashing the result with BLAKE2b.
+
+#### State
+
+State blocks (previously known as universal blocks) are meant to replace all
+other block types.
+
+| Length | Contents                  |
+| :----- | :------------------------ |
+| `32`   | Account public key        |
+| `32`   | Previous block hash       |
+| `32`   | Representative public key |
+| `16`   | `uint128_t` Balance       |
+| `32`   | Link                      |
+| `64`   | Signature                 |
+| `8`    | `uint64_t` Work           |
+
+__NOTE:__ For this block type, the work value is encoded in big endian.
+
+The hash of this block is calculated by concatenating [Account public key,
+Previous block hash, Representative public key, Balance, Link] and hashing the
+result with BLAKE2b.
 
 ### Work
 
