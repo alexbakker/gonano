@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/alexbakker/gonano/nano/wallet"
+	"github.com/alexbakker/gonano/nano"
 )
 
 type Vote struct {
-	Address   wallet.Address
+	Address   nano.Address
 	Signature Signature
 	Sequence  uint64
 	Block     Block

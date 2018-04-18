@@ -4,20 +4,20 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/block"
 	"github.com/alexbakker/gonano/nano/internal/util"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 const (
-	PendingKeySize = wallet.AddressSize + block.HashSize
+	PendingKeySize = nano.AddressSize + block.HashSize
 )
 
 type PendingKey [PendingKeySize]byte
 
 type Pending struct {
-	Address wallet.Address
-	Amount  wallet.Balance
+	Address nano.Address
+	Amount  nano.Balance
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -44,7 +44,7 @@ func (p *Pending) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	balance := make([]byte, wallet.BalanceSize)
+	balance := make([]byte, nano.BalanceSize)
 	if _, err := reader.Read(balance); err != nil {
 		return err
 	}

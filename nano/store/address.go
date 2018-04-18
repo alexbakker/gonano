@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/block"
 	"github.com/alexbakker/gonano/nano/internal/util"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 type AddressInfo struct {
 	HeadBlock block.Hash
 	RepBlock  block.Hash
 	OpenBlock block.Hash
-	Balance   wallet.Balance
+	Balance   nano.Balance
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -57,7 +57,7 @@ func (i *AddressInfo) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	balance := make([]byte, wallet.BalanceSize)
+	balance := make([]byte, nano.BalanceSize)
 	if _, err = reader.Read(balance); err != nil {
 		return err
 	}

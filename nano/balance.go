@@ -1,4 +1,4 @@
-package wallet
+package nano
 
 import (
 	"encoding/binary"

@@ -1,4 +1,4 @@
-package wallet
+package nano
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"github.com/alexbakker/gonano/nano/internal/util"
 )
 
-func TestWalletAddress(t *testing.T) {
+func TestNanoAddress(t *testing.T) {
 	s1 := "xrb_3t6k35gi95xu6tergt6p69ck76ogmitsa8mnijtpxm9fkcm736xtoncuohr3"
 	s2 := "xrb_1111111111111111111111111111111111111111111111111111hifc8npp"
 

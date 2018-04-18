@@ -4,8 +4,8 @@ import (
 	"errors"
 	"os"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/block"
-	"github.com/alexbakker/gonano/nano/wallet"
 	"github.com/dgraph-io/badger"
 	badgerOpts "github.com/dgraph-io/badger/options"
 )
@@ -371,13 +371,13 @@ func (t *BadgerStoreTxn) CountBlocks() (uint64, error) {
 	return count, nil
 }
 
-func (t *BadgerStoreTxn) AddAddress(address wallet.Address, info *AddressInfo) error {
+func (t *BadgerStoreTxn) AddAddress(address nano.Address, info *AddressInfo) error {
 	infoBytes, err := info.MarshalBinary()
 	if err != nil {
 		return err
 	}
 
-	var key [1 + wallet.AddressSize]byte
+	var key [1 + nano.AddressSize]byte
 	key[0] = idPrefixAddress
 	copy(key[1:], address[:])
 
@@ -391,8 +391,8 @@ func (t *BadgerStoreTxn) AddAddress(address wallet.Address, info *AddressInfo) e
 	return t.set(key[:], infoBytes)
 }
 
-func (t *BadgerStoreTxn) GetAddress(address wallet.Address) (*AddressInfo, error) {
-	var key [1 + wallet.AddressSize]byte
+func (t *BadgerStoreTxn) GetAddress(address nano.Address) (*AddressInfo, error) {
+	var key [1 + nano.AddressSize]byte
 	key[0] = idPrefixAddress
 	copy(key[1:], address[:])
 
@@ -414,27 +414,27 @@ func (t *BadgerStoreTxn) GetAddress(address wallet.Address) (*AddressInfo, error
 	return &info, nil
 }
 
-func (t *BadgerStoreTxn) UpdateAddress(address wallet.Address, info *AddressInfo) error {
+func (t *BadgerStoreTxn) UpdateAddress(address nano.Address, info *AddressInfo) error {
 	infoBytes, err := info.MarshalBinary()
 	if err != nil {
 		return err
 	}
 
-	var key [1 + wallet.AddressSize]byte
+	var key [1 + nano.AddressSize]byte
 	key[0] = idPrefixAddress
 	copy(key[1:], address[:])
 
 	return t.set(key[:], infoBytes)
 }
 
-func (t *BadgerStoreTxn) DeleteAddress(address wallet.Address) error {
+func (t *BadgerStoreTxn) DeleteAddress(address nano.Address) error {
 	var key [1 + block.HashSize]byte
 	key[0] = idPrefixAddress
 	copy(key[1:], address[:])
 	return t.delete(key[:])
 }
 
-func (t *BadgerStoreTxn) HasAddress(address wallet.Address) (bool, error) {
+func (t *BadgerStoreTxn) HasAddress(address nano.Address) (bool, error) {
 	var key [1 + block.HashSize]byte
 	key[0] = idPrefixBlock
 	copy(key[1:], address[:])
@@ -530,7 +530,7 @@ func (t *BadgerStoreTxn) CountFrontiers() (uint64, error) {
 	return count, nil
 }
 
-func (t *BadgerStoreTxn) AddPending(destination wallet.Address, hash block.Hash, pending *Pending) error {
+func (t *BadgerStoreTxn) AddPending(destination nano.Address, hash block.Hash, pending *Pending) error {
 	pendingBytes, err := pending.MarshalBinary()
 	if err != nil {
 		return err
@@ -539,7 +539,7 @@ func (t *BadgerStoreTxn) AddPending(destination wallet.Address, hash block.Hash,
 	var key [1 + PendingKeySize]byte
 	key[0] = idPrefixPending
 	copy(key[1:], destination[:])
-	copy(key[1+wallet.AddressSize:], hash[:])
+	copy(key[1+nano.AddressSize:], hash[:])
 
 	// never overwrite implicitly
 	if _, err := t.txn.Get(key[:]); err != nil && err != badger.ErrKeyNotFound {
@@ -551,11 +551,11 @@ func (t *BadgerStoreTxn) AddPending(destination wallet.Address, hash block.Hash,
 	return t.set(key[:], pendingBytes)
 }
 
-func (t *BadgerStoreTxn) GetPending(destination wallet.Address, hash block.Hash) (*Pending, error) {
+func (t *BadgerStoreTxn) GetPending(destination nano.Address, hash block.Hash) (*Pending, error) {
 	var key [1 + PendingKeySize]byte
 	key[0] = idPrefixPending
 	copy(key[1:], destination[:])
-	copy(key[1+wallet.AddressSize:], hash[:])
+	copy(key[1+nano.AddressSize:], hash[:])
 
 	item, err := t.txn.Get(key[:])
 	if err != nil {
@@ -575,16 +575,16 @@ func (t *BadgerStoreTxn) GetPending(destination wallet.Address, hash block.Hash)
 	return &pending, nil
 }
 
-func (t *BadgerStoreTxn) DeletePending(destination wallet.Address, hash block.Hash) error {
+func (t *BadgerStoreTxn) DeletePending(destination nano.Address, hash block.Hash) error {
 	var key [1 + PendingKeySize]byte
 	key[0] = idPrefixPending
 	copy(key[1:], destination[:])
-	copy(key[1+wallet.AddressSize:], hash[:])
+	copy(key[1+nano.AddressSize:], hash[:])
 	return t.delete(key[:])
 }
 
-func (t *BadgerStoreTxn) setRepresentation(address wallet.Address, amount wallet.Balance) error {
-	var key [1 + wallet.AddressSize]byte
+func (t *BadgerStoreTxn) setRepresentation(address nano.Address, amount nano.Balance) error {
+	var key [1 + nano.AddressSize]byte
 	key[0] = idPrefixRepresentation
 	copy(key[1:], address[:])
 
@@ -596,7 +596,7 @@ func (t *BadgerStoreTxn) setRepresentation(address wallet.Address, amount wallet
 	return t.set(key[:], amountBytes)
 }
 
-func (t *BadgerStoreTxn) AddRepresentation(address wallet.Address, amount wallet.Balance) error {
+func (t *BadgerStoreTxn) AddRepresentation(address nano.Address, amount nano.Balance) error {
 	oldAmount, err := t.GetRepresentation(address)
 	if err != nil {
 		return err
@@ -605,7 +605,7 @@ func (t *BadgerStoreTxn) AddRepresentation(address wallet.Address, amount wallet
 	return t.setRepresentation(address, oldAmount.Add(amount))
 }
 
-func (t *BadgerStoreTxn) SubRepresentation(address wallet.Address, amount wallet.Balance) error {
+func (t *BadgerStoreTxn) SubRepresentation(address nano.Address, amount nano.Balance) error {
 	oldAmount, err := t.GetRepresentation(address)
 	if err != nil {
 		return err
@@ -614,27 +614,27 @@ func (t *BadgerStoreTxn) SubRepresentation(address wallet.Address, amount wallet
 	return t.setRepresentation(address, oldAmount.Sub(amount))
 }
 
-func (t *BadgerStoreTxn) GetRepresentation(address wallet.Address) (wallet.Balance, error) {
-	var key [1 + wallet.AddressSize]byte
+func (t *BadgerStoreTxn) GetRepresentation(address nano.Address) (nano.Balance, error) {
+	var key [1 + nano.AddressSize]byte
 	key[0] = idPrefixRepresentation
 	copy(key[1:], address[:])
 
 	item, err := t.txn.Get(key[:])
 	if err != nil {
 		if err == badger.ErrKeyNotFound {
-			return wallet.ZeroBalance, nil
+			return nano.ZeroBalance, nil
 		}
-		return wallet.ZeroBalance, err
+		return nano.ZeroBalance, err
 	}
 
 	amountBytes, err := item.Value()
 	if err != nil {
-		return wallet.ZeroBalance, err
+		return nano.ZeroBalance, err
 	}
 
-	var amount wallet.Balance
+	var amount nano.Balance
 	if err := amount.UnmarshalBinary(amountBytes); err != nil {
-		return wallet.ZeroBalance, err
+		return nano.ZeroBalance, err
 	}
 
 	return amount, nil

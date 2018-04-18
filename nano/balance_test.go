@@ -1,10 +1,10 @@
-package wallet
+package nano
 
 import (
 	"testing"
 )
 
-func TestWalletBalance(t *testing.T) {
+func TestNanoBalance(t *testing.T) {
 	b1 := ParseBalanceInts(0xffffffffffffffff, 0xffffffffffffffff)
 	b2 := ParseBalanceInts(0, 1)
 	b1Units := map[string]string{

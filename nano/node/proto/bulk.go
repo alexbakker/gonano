@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/block"
 	"github.com/alexbakker/gonano/nano/internal/util"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 type BulkPullMode byte
@@ -17,7 +17,7 @@ const (
 )
 
 type BulkPullPacket struct {
-	Address wallet.Address
+	Address nano.Address
 	Hash    block.Hash
 }
 

@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/wallet"
 	"github.com/spf13/cobra"
 )
@@ -22,7 +23,7 @@ var (
 
 type result struct {
 	Seed       *wallet.Seed
-	Address    wallet.Address
+	Address    nano.Address
 	Iterations uint64
 }
 
@@ -40,7 +41,7 @@ func main() {
 
 func startVanity(cmd *cobra.Command, args []string) {
 	for _, c := range prefix {
-		if !strings.ContainsRune(wallet.AddressEncodingAlphabet, c) {
+		if !strings.ContainsRune(nano.AddressEncodingAlphabet, c) {
 			fmt.Printf("error: char '%c' is not in nano's encoding alphabet\n", c)
 			return
 		}

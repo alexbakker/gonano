@@ -6,10 +6,10 @@ import (
 	"net"
 	"time"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/block"
 	"github.com/alexbakker/gonano/nano/node/proto"
 	"github.com/alexbakker/gonano/nano/store"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 var (
@@ -35,7 +35,7 @@ type Node struct {
 	ledger  *store.Ledger
 	stop    chan struct{}
 
-	frontiers map[wallet.Address]block.Hash
+	frontiers map[nano.Address]block.Hash
 }
 
 type Options struct {
@@ -76,7 +76,7 @@ func New(ledger *store.Ledger, options Options) (*Node, error) {
 		peers:     NewPeerList(options.MaxPeers),
 		ledger:    ledger,
 		stop:      make(chan struct{}),
-		frontiers: map[wallet.Address]block.Hash{},
+		frontiers: map[nano.Address]block.Hash{},
 	}, nil
 }
 

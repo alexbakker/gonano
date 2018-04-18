@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/internal/util"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 type FrontierReqPacket struct {
-	StartAddress wallet.Address
+	StartAddress nano.Address
 	Age          uint32
 	Count        uint32
 }

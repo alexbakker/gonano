@@ -3,8 +3,8 @@ package store
 import (
 	"errors"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/block"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 var (
@@ -48,11 +48,11 @@ type StoreTxn interface {
 	WalkUncheckedBlocks(visit UncheckedBlockWalkFunc) error
 	CountUncheckedBlocks() (uint64, error)
 
-	AddAddress(address wallet.Address, info *AddressInfo) error
-	GetAddress(address wallet.Address) (*AddressInfo, error)
-	UpdateAddress(address wallet.Address, info *AddressInfo) error
-	DeleteAddress(address wallet.Address) error
-	HasAddress(address wallet.Address) (bool, error)
+	AddAddress(address nano.Address, info *AddressInfo) error
+	GetAddress(address nano.Address) (*AddressInfo, error)
+	UpdateAddress(address nano.Address, info *AddressInfo) error
+	DeleteAddress(address nano.Address) error
+	HasAddress(address nano.Address) (bool, error)
 
 	AddFrontier(frontier *block.Frontier) error
 	GetFrontier(hash block.Hash) (*block.Frontier, error)
@@ -60,11 +60,11 @@ type StoreTxn interface {
 	DeleteFrontier(hash block.Hash) error
 	CountFrontiers() (uint64, error)
 
-	AddPending(destination wallet.Address, hash block.Hash, pending *Pending) error
-	GetPending(destination wallet.Address, hash block.Hash) (*Pending, error)
-	DeletePending(destination wallet.Address, hash block.Hash) error
+	AddPending(destination nano.Address, hash block.Hash, pending *Pending) error
+	GetPending(destination nano.Address, hash block.Hash) (*Pending, error)
+	DeletePending(destination nano.Address, hash block.Hash) error
 
-	AddRepresentation(address wallet.Address, amount wallet.Balance) error
-	SubRepresentation(address wallet.Address, amount wallet.Balance) error
-	GetRepresentation(address wallet.Address) (wallet.Balance, error)
+	AddRepresentation(address nano.Address, amount nano.Balance) error
+	SubRepresentation(address nano.Address, amount nano.Balance) error
+	GetRepresentation(address nano.Address) (nano.Balance, error)
 }

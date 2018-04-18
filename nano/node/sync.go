@@ -8,10 +8,10 @@ import (
 	"net"
 	"time"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/block"
 	"github.com/alexbakker/gonano/nano/internal/util"
 	"github.com/alexbakker/gonano/nano/node/proto"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 const (
@@ -42,7 +42,7 @@ type FrontierSyncer struct {
 
 type BulkPullSyncer struct {
 	blocks     []block.Block
-	addrs      []wallet.Address
+	addrs      []nano.Address
 	writeIndex int
 	readIndex  int
 	cb         BulkPullSyncerFunc
@@ -58,8 +58,8 @@ func NewFrontierSyncer(cb FrontierSyncerFunc) *FrontierSyncer {
 	return &FrontierSyncer{cb: cb}
 }
 
-func NewBulkPullSyncer(cb BulkPullSyncerFunc, frontiers map[wallet.Address]block.Hash) *BulkPullSyncer {
-	addrs := make([]wallet.Address, 0, len(frontiers))
+func NewBulkPullSyncer(cb BulkPullSyncerFunc, frontiers map[nano.Address]block.Hash) *BulkPullSyncer {
+	addrs := make([]nano.Address, 0, len(frontiers))
 	for addr := range frontiers {
 		addrs = append(addrs, addr)
 	}
@@ -199,7 +199,7 @@ func (s *FrontierSyncer) ReadNext(r io.Reader) (bool, error) {
 // WriteNext implements the Syncer interface.
 func (s *FrontierSyncer) WriteNext(w io.Writer) (done bool, err error) {
 	packet := proto.FrontierReqPacket{
-		StartAddress: wallet.Address{},
+		StartAddress: nano.Address{},
 		Age:          math.MaxUint32,
 		Count:        math.MaxUint32,
 	}

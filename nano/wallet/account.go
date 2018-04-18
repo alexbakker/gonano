@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/crypto/ed25519"
 )
 
@@ -19,8 +20,8 @@ func NewAccount(key ed25519.PrivateKey) *Account {
 }
 
 // Address returns the public key of this account as an Address type.
-func (a *Account) Address() Address {
-	var address Address
+func (a *Account) Address() nano.Address {
+	var address nano.Address
 	copy(address[:], a.pubKey)
 	return address
 }

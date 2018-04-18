@@ -1,9 +1,9 @@
 package genesis
 
 import (
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/block"
 	"github.com/alexbakker/gonano/nano/internal/util"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 var (
@@ -16,5 +16,5 @@ var (
 			Signature: util.MustDecodeHex64("9F0C933C8ADE004D808EA1985FA746A7E95BA2A38F867640F53EC8F180BDFE9E2C1268DEAD7C2664F356E37ABA362BC58E46DBA03E523A7B5A19E4B6EB12BB02"),
 		},
 	}
-	LiveBalance = wallet.ParseBalanceInts(0xffffffffffffffff, 0xffffffffffffffff)
+	LiveBalance = nano.ParseBalanceInts(0xffffffffffffffff, 0xffffffffffffffff)
 )

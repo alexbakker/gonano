@@ -6,8 +6,8 @@ import (
 	"encoding/binary"
 	"errors"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/internal/util"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 const (
@@ -37,11 +37,11 @@ var (
 
 const (
 	blockSizeCommon  = SignatureSize + 8
-	blockSizeOpen    = blockSizeCommon + HashSize + wallet.AddressSize*2
-	blockSizeSend    = blockSizeCommon + HashSize + wallet.AddressSize + wallet.BalanceSize
+	blockSizeOpen    = blockSizeCommon + HashSize + nano.AddressSize*2
+	blockSizeSend    = blockSizeCommon + HashSize + nano.AddressSize + nano.BalanceSize
 	blockSizeReceive = blockSizeCommon + HashSize*2
-	blockSizeChange  = blockSizeCommon + HashSize + wallet.AddressSize
-	blockSizeState   = blockSizeCommon + HashSize*2 + wallet.AddressSize*2 + wallet.BalanceSize
+	blockSizeChange  = blockSizeCommon + HashSize + nano.AddressSize
+	blockSizeState   = blockSizeCommon + HashSize*2 + nano.AddressSize*2 + nano.BalanceSize
 )
 
 type CommonBlock struct {
@@ -61,17 +61,17 @@ type Block interface {
 }
 
 type OpenBlock struct {
-	SourceHash     Hash           `json:"source"`
-	Representative wallet.Address `json:"representative"`
-	Address        wallet.Address `json:"address"`
-	Common         CommonBlock    `json:"common"`
+	SourceHash     Hash         `json:"source"`
+	Representative nano.Address `json:"representative"`
+	Address        nano.Address `json:"address"`
+	Common         CommonBlock  `json:"common"`
 }
 
 type SendBlock struct {
-	PreviousHash Hash           `json:"previous"`
-	Destination  wallet.Address `json:"destination"`
-	Balance      wallet.Balance `json:"balance"`
-	Common       CommonBlock    `json:"common"`
+	PreviousHash Hash         `json:"previous"`
+	Destination  nano.Address `json:"destination"`
+	Balance      nano.Balance `json:"balance"`
+	Common       CommonBlock  `json:"common"`
 }
 
 type ReceiveBlock struct {
@@ -81,16 +81,16 @@ type ReceiveBlock struct {
 }
 
 type ChangeBlock struct {
-	PreviousHash   Hash           `json:"previous"`
-	Representative wallet.Address `json:"representative"`
-	Common         CommonBlock    `json:"common"`
+	PreviousHash   Hash         `json:"previous"`
+	Representative nano.Address `json:"representative"`
+	Common         CommonBlock  `json:"common"`
 }
 
 type StateBlock struct {
-	Address        wallet.Address `json:"address"`
+	Address        nano.Address   `json:"address"`
 	PreviousHash   Hash           `json:"previous"`
-	Representative wallet.Address `json:"representative"`
-	Balance        wallet.Balance `json:"balance"`
+	Representative nano.Address   `json:"representative"`
+	Balance        nano.Balance   `json:"balance"`
 	Link           [HashSize]byte `json:"link"`
 	Common         CommonBlock    `json:"common"`
 }
@@ -265,7 +265,7 @@ func (b *SendBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	balance := make([]byte, wallet.BalanceSize)
+	balance := make([]byte, nano.BalanceSize)
 	if _, err = reader.Read(balance); err != nil {
 		return err
 	}
@@ -496,7 +496,7 @@ func (b *StateBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	balance := make([]byte, wallet.BalanceSize)
+	balance := make([]byte, nano.BalanceSize)
 	if _, err = reader.Read(balance); err != nil {
 		return err
 	}

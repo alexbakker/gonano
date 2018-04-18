@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/block"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 var (
@@ -25,7 +25,7 @@ type Ledger struct {
 
 type LedgerOptions struct {
 	GenesisBlock   *block.OpenBlock
-	GenesisBalance wallet.Balance
+	GenesisBalance nano.Balance
 }
 
 func NewLedger(store Store, opts LedgerOptions) (*Ledger, error) {
@@ -39,7 +39,7 @@ func NewLedger(store Store, opts LedgerOptions) (*Ledger, error) {
 	return &ledger, nil
 }
 
-func (l *Ledger) setGenesis(blk *block.OpenBlock, balance wallet.Balance) error {
+func (l *Ledger) setGenesis(blk *block.OpenBlock, balance nano.Balance) error {
 	hash := blk.Hash()
 
 	// make sure the work value is valid
@@ -175,7 +175,7 @@ func (l *Ledger) addSendBlock(txn StoreTxn, blk *block.SendBlock) error {
 
 	// make sure this is not a negative spend
 	// (apparently zero spends are allowed?)
-	if blk.Balance.Compare(info.Balance) == wallet.BalanceCompBigger {
+	if blk.Balance.Compare(info.Balance) == nano.BalanceCompBigger {
 		return fmt.Errorf("negative spend: %s > %s", blk.Balance, info.Balance)
 	}
 
@@ -547,8 +547,8 @@ func (l *Ledger) CountUncheckedBlocks() (uint64, error) {
 	return res, err
 }
 
-func (l *Ledger) GetBalance(address wallet.Address) (wallet.Balance, error) {
-	var balance wallet.Balance
+func (l *Ledger) GetBalance(address nano.Address) (nano.Balance, error) {
+	var balance nano.Balance
 
 	err := l.db.View(func(txn StoreTxn) error {
 		info, err := txn.GetAddress(address)
@@ -562,7 +562,7 @@ func (l *Ledger) GetBalance(address wallet.Address) (wallet.Balance, error) {
 	return balance, err
 }
 
-func (l *Ledger) GetFrontier(address wallet.Address) (block.Hash, error) {
+func (l *Ledger) GetFrontier(address nano.Address) (block.Hash, error) {
 	var hash block.Hash
 
 	err := l.db.View(func(txn StoreTxn) error {
@@ -586,15 +586,15 @@ func (l *Ledger) GetFrontier(address wallet.Address) (block.Hash, error) {
 	return hash, err
 }
 
-func (l *Ledger) getRepresentative(txn StoreTxn, address wallet.Address) (wallet.Address, error) {
+func (l *Ledger) getRepresentative(txn StoreTxn, address nano.Address) (nano.Address, error) {
 	info, err := txn.GetAddress(address)
 	if err != nil {
-		return wallet.Address{}, err
+		return nano.Address{}, err
 	}
 
 	blk, err := txn.GetBlock(info.RepBlock)
 	if err != nil {
-		return wallet.Address{}, err
+		return nano.Address{}, err
 	}
 
 	switch b := blk.(type) {
@@ -603,6 +603,6 @@ func (l *Ledger) getRepresentative(txn StoreTxn, address wallet.Address) (wallet
 	case *block.ChangeBlock:
 		return b.Representative, nil
 	default:
-		return wallet.Address{}, errors.New("bad representative block type")
+		return nano.Address{}, errors.New("bad representative block type")
 	}
 }

@@ -3,8 +3,8 @@ package block
 import (
 	"testing"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/internal/util"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 var (
@@ -20,7 +20,7 @@ var (
 	sendBlock = &SendBlock{
 		PreviousHash: util.MustDecodeHex32("4270F4FB3A820FE81827065F967A9589DF5CA860443F812D21ECE964AC359E05"),
 		Destination:  util.MustDecodeHex32("0000000000000000000000000000000000000000000000000000000000000000"),
-		Balance:      wallet.ParseBalanceInts(0, 0),
+		Balance:      nano.ParseBalanceInts(0, 0),
 		Common: CommonBlock{
 			Work:      0x7202df8a7c380578,
 			Signature: util.MustDecodeHex64("047115CB577AC78F5C66AD79BBF47540DE97A441456004190F22025FE4255285F57010D962601AE64C266C98FA22973DD95AC62309634940B727AC69F0C86D03"),

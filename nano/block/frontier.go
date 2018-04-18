@@ -3,16 +3,16 @@ package block
 import (
 	"bytes"
 
+	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/internal/util"
-	"github.com/alexbakker/gonano/nano/wallet"
 )
 
 const (
-	FrontierSize = wallet.AddressSize + HashSize
+	FrontierSize = nano.AddressSize + HashSize
 )
 
 type Frontier struct {
-	Address wallet.Address
+	Address nano.Address
 	Hash    Hash
 }
 
