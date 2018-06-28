@@ -59,8 +59,12 @@ func ParseBalance(s string, unit string) (Balance, error) {
 	f := bigPow(10, int64(d.Exponent()))
 	i := c.Mul(c, f)
 
+	bytes := i.Bytes()
+	balanceBytes := make([]byte, BalanceSize)
+	copy(balanceBytes[len(balanceBytes)-len(bytes):], bytes)
+
 	var balance Balance
-	if err := balance.UnmarshalBinary(i.Bytes()); err != nil {
+	if err := balance.UnmarshalBinary(balanceBytes); err != nil {
 		return ZeroBalance, err
 	}
 
