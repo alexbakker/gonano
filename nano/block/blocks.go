@@ -105,6 +105,8 @@ func New(blockType byte) (Block, error) {
 		return new(ReceiveBlock), nil
 	case idBlockChange:
 		return new(ChangeBlock), nil
+	case idBlockState:
+		return new(StateBlock), nil
 	case idBlockNotABlock:
 		return nil, ErrNotABlock
 	default:
@@ -125,7 +127,7 @@ func (b *CommonBlock) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	if err = binary.Write(buf, binary.LittleEndian, b.Work); err != nil {
+	if err = binary.Write(buf, binary.BigEndian, b.Work); err != nil {
 		return nil, err
 	}
 
@@ -140,7 +142,7 @@ func (b *CommonBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	if err := binary.Read(reader, binary.LittleEndian, &b.Work); err != nil {
+	if err := binary.Read(reader, binary.BigEndian, &b.Work); err != nil {
 		return err
 	}
 
@@ -517,7 +519,9 @@ func (b *StateBlock) UnmarshalBinary(data []byte) error {
 }
 
 func (b *StateBlock) Hash() Hash {
-	return hashBytes(b.Address[:], b.PreviousHash[:], b.Representative[:], b.Balance.Bytes(binary.BigEndian), b.Link[:])
+	var preamble [HashSize]byte
+	preamble[len(preamble)-1] = 0x6
+	return hashBytes(preamble[:], b.Address[:], b.PreviousHash[:], b.Representative[:], b.Balance.Bytes(binary.BigEndian), b.Link[:])
 }
 
 func (b *StateBlock) Root() Hash {

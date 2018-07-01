@@ -120,7 +120,6 @@ func startNode(cmd *cobra.Command, args []string) {
 			}
 
 			os.Exit(0)
-
 		case syscall.SIGHUP:
 			logger.Println("error reloading config: not implemented")
 		}

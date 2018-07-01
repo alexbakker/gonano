@@ -29,9 +29,9 @@ func New(net Network) *Proto {
 		net:   net,
 		magic: [...]byte{'R', byte(net)},
 		versions: Versions{
-			Max:   0x06,
-			Using: 0x06,
-			Min:   0x04,
+			Max:   0x07,
+			Using: 0x07,
+			Min:   0x07,
 		},
 	}
 }
@@ -88,6 +88,8 @@ func (p *Proto) UnmarshalPacket(data []byte) (Packet, error) {
 		packet = new(FrontierReqPacket)
 	case idPacketBulkPullBlocks:
 		packet = new(BulkPullBlocksPacket)
+	case idPacketNodeIDHandshake:
+		packet = new(HandshakePacket)
 	default:
 		return nil, ErrBadType
 	}
@@ -101,6 +103,14 @@ func (p *Proto) UnmarshalPacket(data []byte) (Packet, error) {
 
 func (p *Proto) MarshalPacket(packet Packet) ([]byte, error) {
 	header := p.NewHeader(packet.ID())
+
+	switch t := packet.(type) {
+	case *ConfirmReqPacket:
+		header.SetBlockType(t.Type)
+	case *PublishPacket:
+		header.SetBlockType(t.Type)
+	}
+
 	headerBytes, err := header.MarshalBinary()
 	if err != nil {
 		return nil, err

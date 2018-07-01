@@ -114,6 +114,26 @@ func (n *Node) Stop() error {
 	return nil
 }
 
+func (n *Node) Publish(blk block.Block) error {
+	packet := proto.PublishPacket{
+		Type:  blk.ID(),
+		Block: blk,
+	}
+
+	peers, err := n.peers.Pick()
+	if err != nil {
+		return err
+	}
+
+	for _, peer := range peers {
+		if err := n.sendPacket(peer.Addr, &packet); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (n *Node) listenUDP() error {
 	buf := make([]byte, 1024)
 	for {
@@ -169,7 +189,7 @@ func (n *Node) syncFontiers() error {
 
 		fmt.Printf("requesting frontiers from %s\n", peer.Addr)
 
-		syncer := NewFrontierSyncer(n.processFrontier)
+		/*syncer := NewFrontierSyncer(n.processFrontier)
 		if err = Sync(syncer, peer); err == nil {
 			fmt.Printf("received %d out of sync frontiers from %s\n", len(n.frontiers), peer.Addr)
 			syncer := NewBulkPullSyncer(n.processFrontierBlocks, n.frontiers)
@@ -181,7 +201,7 @@ func (n *Node) syncFontiers() error {
 				fmt.Printf("sync error: %s\n", err)
 			}
 			break
-		}
+		}*/
 
 		// retry sooner if an error occurred
 		if err == nil {

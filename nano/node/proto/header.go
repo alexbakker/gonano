@@ -75,3 +75,8 @@ func (s *Header) UnmarshalBinary(data []byte) error {
 func (s *Header) BlockType() byte {
 	return byte((s.Extensions & 0x0f00) >> 8)
 }
+
+func (s *Header) SetBlockType(b byte) {
+	s.Extensions &= ^uint16(0x0f00)
+	s.Extensions |= (uint16(b) << 8)
+}

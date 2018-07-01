@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"github.com/alexbakker/gonano/nano"
+	"github.com/alexbakker/gonano/nano/block"
 	"github.com/alexbakker/gonano/nano/crypto/ed25519"
 )
 
@@ -24,4 +25,10 @@ func (a *Account) Address() nano.Address {
 	var address nano.Address
 	copy(address[:], a.pubKey)
 	return address
+}
+
+func (a *Account) Sign(hash block.Hash) block.Signature {
+	var sig block.Signature
+	copy(sig[:], ed25519.Sign(a.privKey, hash[:]))
+	return sig
 }

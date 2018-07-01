@@ -16,6 +16,7 @@ const (
 	idPacketBulkPush
 	idPacketFrontierReq
 	idPacketBulkPullBlocks
+	idPacketNodeIDHandshake
 )
 
 var (
@@ -24,16 +25,17 @@ var (
 	ErrBadLength = errors.New("bad packet length")
 
 	packetNames = map[byte]string{
-		idPacketInvalid:        "invalid",
-		idPacketNotAType:       "not_a_type",
-		idPacketKeepAlive:      "keep_alive",
-		idPacketPublish:        "publish",
-		idPacketConfirmReq:     "confirm_req",
-		idPacketConfirmAck:     "confirm_ack",
-		idPacketBulkPull:       "bulk_pull",
-		idPacketBulkPush:       "bulk_push",
-		idPacketFrontierReq:    "frontier_req",
-		idPacketBulkPullBlocks: "bulk_pull_blocks",
+		idPacketInvalid:         "invalid",
+		idPacketNotAType:        "not_a_type",
+		idPacketKeepAlive:       "keep_alive",
+		idPacketPublish:         "publish",
+		idPacketConfirmReq:      "confirm_req",
+		idPacketConfirmAck:      "confirm_ack",
+		idPacketBulkPull:        "bulk_pull",
+		idPacketBulkPush:        "bulk_push",
+		idPacketFrontierReq:     "frontier_req",
+		idPacketBulkPullBlocks:  "bulk_pull_blocks",
+		idPacketNodeIDHandshake: "node_id_handshake",
 	}
 )
 
