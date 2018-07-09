@@ -48,8 +48,7 @@ func (l *Ledger) setGenesis(blk *block.OpenBlock, balance nano.Balance) error {
 	}
 
 	// make sure the signature of this block is valid
-	signature := blk.Signature()
-	if !blk.Address.Verify(hash[:], signature[:]) {
+	if !blk.Address.Verify(hash[:], blk.Signature[:]) {
 		return errors.New("bad signature for genesis block")
 	}
 
@@ -98,8 +97,7 @@ func (l *Ledger) addOpenBlock(txn StoreTxn, blk *block.OpenBlock) error {
 	hash := blk.Hash()
 
 	// make sure the signature of this block is valid
-	signature := blk.Signature()
-	if !blk.Address.Verify(hash[:], signature[:]) {
+	if !blk.Address.Verify(hash[:], blk.Signature[:]) {
 		return errors.New("bad block signature")
 	}
 
@@ -159,8 +157,7 @@ func (l *Ledger) addSendBlock(txn StoreTxn, blk *block.SendBlock) error {
 	}
 
 	// make sure the signature of this block is valid
-	signature := blk.Signature()
-	if !frontier.Address.Verify(hash[:], signature[:]) {
+	if !frontier.Address.Verify(hash[:], blk.Signature[:]) {
 		return errors.New("bad block signature")
 	}
 
@@ -230,8 +227,7 @@ func (l *Ledger) addReceiveBlock(txn StoreTxn, blk *block.ReceiveBlock) error {
 	}
 
 	// make sure the signature of this block is valid
-	signature := blk.Signature()
-	if !frontier.Address.Verify(hash[:], signature[:]) {
+	if !frontier.Address.Verify(hash[:], blk.Signature[:]) {
 		return errors.New("bad block signature")
 	}
 
@@ -297,8 +293,7 @@ func (l *Ledger) addChangeBlock(txn StoreTxn, blk *block.ChangeBlock) error {
 	}
 
 	// make sure the signature of this block is valid
-	signature := blk.Signature()
-	if !frontier.Address.Verify(hash[:], signature[:]) {
+	if !frontier.Address.Verify(hash[:], blk.Signature[:]) {
 		return errors.New("bad block signature")
 	}
 

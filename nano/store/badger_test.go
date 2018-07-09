@@ -14,7 +14,7 @@ func generateBlock(t testing.TB) block.Block {
 	random.Bytes(blk.Representative[:])
 	random.Bytes(blk.Address[:])
 	random.Bytes(blk.SourceHash[:])
-	random.Bytes(blk.Common.Signature[:])
+	random.Bytes(blk.Signature[:])
 	return &blk
 }
 

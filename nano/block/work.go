@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	workSize      = 8
+	WorkSize      = 8
 	WorkThreshold = uint64(0xffffffc000000000)
 )
 
@@ -34,11 +34,11 @@ func (w Work) MarshalText() (text []byte, err error) {
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
 func (w *Work) UnmarshalText(text []byte) error {
 	size := hex.DecodedLen(len(text))
-	if size != workSize {
+	if size != WorkSize {
 		return fmt.Errorf("bad work size: %d", size)
 	}
 
-	var work [workSize]byte
+	var work [WorkSize]byte
 	if _, err := hex.Decode(work[:], text); err != nil {
 		return err
 	}
@@ -49,13 +49,13 @@ func (w *Work) UnmarshalText(text []byte) error {
 
 // String implements the fmt.Stringer interface.
 func (w Work) String() string {
-	var bytes [workSize]byte
+	var bytes [WorkSize]byte
 	binary.BigEndian.PutUint64(bytes[:], uint64(w))
 	return hex.EncodeToString(bytes[:])
 }
 
 func NewWorker(work Work, root Hash) *Worker {
-	hash, err := blake2b.New(workSize, nil)
+	hash, err := blake2b.New(WorkSize, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -68,7 +68,7 @@ func NewWorker(work Work, root Hash) *Worker {
 }
 
 func (w *Worker) Valid() bool {
-	var workBytes [workSize]byte
+	var workBytes [WorkSize]byte
 	binary.LittleEndian.PutUint64(workBytes[:], uint64(w.work))
 
 	w.hash.Reset()

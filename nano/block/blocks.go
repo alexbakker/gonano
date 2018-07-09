@@ -36,7 +36,8 @@ var (
 )
 
 const (
-	blockSizeCommon  = SignatureSize + 8
+	preambleSize     = 32
+	blockSizeCommon  = SignatureSize + WorkSize
 	blockSizeOpen    = blockSizeCommon + HashSize + nano.AddressSize*2
 	blockSizeSend    = blockSizeCommon + HashSize + nano.AddressSize + nano.BalanceSize
 	blockSizeReceive = blockSizeCommon + HashSize*2
@@ -44,17 +45,11 @@ const (
 	blockSizeState   = blockSizeCommon + HashSize*2 + nano.AddressSize*2 + nano.BalanceSize
 )
 
-type CommonBlock struct {
-	Signature Signature `json:"signature"`
-	Work      Work      `json:"work"`
-}
-
 type Block interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 	Hash() Hash
 	Root() Hash
-	Signature() Signature
 	Size() int
 	ID() byte
 	Valid() bool
@@ -64,26 +59,30 @@ type OpenBlock struct {
 	SourceHash     Hash         `json:"source"`
 	Representative nano.Address `json:"representative"`
 	Address        nano.Address `json:"address"`
-	Common         CommonBlock  `json:"common"`
+	Signature      Signature    `json:"signature"`
+	Work           Work         `json:"work"`
 }
 
 type SendBlock struct {
 	PreviousHash Hash         `json:"previous"`
 	Destination  nano.Address `json:"destination"`
 	Balance      nano.Balance `json:"balance"`
-	Common       CommonBlock  `json:"common"`
+	Signature    Signature    `json:"signature"`
+	Work         Work         `json:"work"`
 }
 
 type ReceiveBlock struct {
-	PreviousHash Hash        `json:"previous"`
-	SourceHash   Hash        `json:"source"`
-	Common       CommonBlock `json:"common"`
+	PreviousHash Hash      `json:"previous"`
+	SourceHash   Hash      `json:"source"`
+	Signature    Signature `json:"signature"`
+	Work         Work      `json:"work"`
 }
 
 type ChangeBlock struct {
 	PreviousHash   Hash         `json:"previous"`
 	Representative nano.Address `json:"representative"`
-	Common         CommonBlock  `json:"common"`
+	Signature      Signature    `json:"signature"`
+	Work           Work         `json:"work"`
 }
 
 type StateBlock struct {
@@ -92,7 +91,8 @@ type StateBlock struct {
 	Representative nano.Address   `json:"representative"`
 	Balance        nano.Balance   `json:"balance"`
 	Link           [HashSize]byte `json:"link"`
-	Common         CommonBlock    `json:"common"`
+	Signature      Signature      `json:"signature"`
+	Work           Work           `json:"work"`
 }
 
 func New(blockType byte) (Block, error) {
@@ -118,35 +118,41 @@ func Name(id byte) string {
 	return blockNames[id]
 }
 
-// MarshalBinary implements the encoding.BinaryMarshaler interface.
-func (b *CommonBlock) MarshalBinary() ([]byte, error) {
+func marshalCommon(sig Signature, work Work, order binary.ByteOrder) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	var err error
-	if _, err = buf.Write(b.Signature[:]); err != nil {
+	if _, err = buf.Write(sig[:]); err != nil {
 		return nil, err
 	}
 
-	if err = binary.Write(buf, binary.BigEndian, b.Work); err != nil {
+	if err = binary.Write(buf, order, work); err != nil {
 		return nil, err
 	}
 
 	return buf.Bytes(), nil
 }
 
-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
-func (b *CommonBlock) UnmarshalBinary(data []byte) error {
+func unmarshalCommon(data []byte, order binary.ByteOrder, sig *Signature, work *Work) error {
 	reader := bytes.NewReader(data)
 
-	if _, err := reader.Read(b.Signature[:]); err != nil {
+	var s Signature
+	if _, err := reader.Read(s[:]); err != nil {
+		return err
+	}
+	*sig = s
+
+	var w Work
+	if err := binary.Read(reader, order, &w); err != nil {
+		return err
+	}
+	*work = w
+
+	if err := util.AssertReaderEOF(reader); err != nil {
 		return err
 	}
 
-	if err := binary.Read(reader, binary.BigEndian, &b.Work); err != nil {
-		return err
-	}
-
-	return util.AssertReaderEOF(reader)
+	return nil
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -166,7 +172,7 @@ func (b *OpenBlock) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	commonBytes, err := b.Common.MarshalBinary()
+	commonBytes, err := marshalCommon(b.Signature, b.Work, binary.LittleEndian)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +205,7 @@ func (b *OpenBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	return b.Common.UnmarshalBinary(commonBytes)
+	return unmarshalCommon(commonBytes, binary.LittleEndian, &b.Signature, &b.Work)
 }
 
 func (b *OpenBlock) Hash() Hash {
@@ -208,10 +214,6 @@ func (b *OpenBlock) Hash() Hash {
 
 func (b *OpenBlock) Root() Hash {
 	return b.SourceHash
-}
-
-func (b *OpenBlock) Signature() Signature {
-	return b.Common.Signature
 }
 
 func (b *OpenBlock) Size() int {
@@ -223,7 +225,7 @@ func (b *OpenBlock) ID() byte {
 }
 
 func (b *OpenBlock) Valid() bool {
-	return b.Common.Work.Valid(Hash(b.Address))
+	return b.Work.Valid(Hash(b.Address))
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -243,7 +245,7 @@ func (b *SendBlock) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	commonBytes, err := b.Common.MarshalBinary()
+	commonBytes, err := marshalCommon(b.Signature, b.Work, binary.LittleEndian)
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +282,7 @@ func (b *SendBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	return b.Common.UnmarshalBinary(commonBytes)
+	return unmarshalCommon(commonBytes, binary.LittleEndian, &b.Signature, &b.Work)
 }
 
 func (b *SendBlock) Hash() Hash {
@@ -289,10 +291,6 @@ func (b *SendBlock) Hash() Hash {
 
 func (b *SendBlock) Root() Hash {
 	return b.PreviousHash
-}
-
-func (b *SendBlock) Signature() Signature {
-	return b.Common.Signature
 }
 
 func (b *SendBlock) Size() int {
@@ -304,7 +302,7 @@ func (b *SendBlock) ID() byte {
 }
 
 func (b *SendBlock) Valid() bool {
-	return b.Common.Work.Valid(b.PreviousHash)
+	return b.Work.Valid(b.PreviousHash)
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -320,7 +318,7 @@ func (b *ReceiveBlock) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	commonBytes, err := b.Common.MarshalBinary()
+	commonBytes, err := marshalCommon(b.Signature, b.Work, binary.LittleEndian)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +347,7 @@ func (b *ReceiveBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	return b.Common.UnmarshalBinary(commonBytes)
+	return unmarshalCommon(commonBytes, binary.LittleEndian, &b.Signature, &b.Work)
 }
 
 func (b *ReceiveBlock) Hash() Hash {
@@ -358,10 +356,6 @@ func (b *ReceiveBlock) Hash() Hash {
 
 func (b *ReceiveBlock) Root() Hash {
 	return b.PreviousHash
-}
-
-func (b *ReceiveBlock) Signature() Signature {
-	return b.Common.Signature
 }
 
 func (b *ReceiveBlock) Size() int {
@@ -373,7 +367,7 @@ func (b *ReceiveBlock) ID() byte {
 }
 
 func (b *ReceiveBlock) Valid() bool {
-	return b.Common.Work.Valid(b.PreviousHash)
+	return b.Work.Valid(b.PreviousHash)
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -389,7 +383,7 @@ func (b *ChangeBlock) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	commonBytes, err := b.Common.MarshalBinary()
+	commonBytes, err := marshalCommon(b.Signature, b.Work, binary.LittleEndian)
 	if err != nil {
 		return nil, err
 	}
@@ -418,7 +412,7 @@ func (b *ChangeBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	return b.Common.UnmarshalBinary(commonBytes)
+	return unmarshalCommon(commonBytes, binary.LittleEndian, &b.Signature, &b.Work)
 }
 
 func (b *ChangeBlock) Hash() Hash {
@@ -427,10 +421,6 @@ func (b *ChangeBlock) Hash() Hash {
 
 func (b *ChangeBlock) Root() Hash {
 	return b.PreviousHash
-}
-
-func (b *ChangeBlock) Signature() Signature {
-	return b.Common.Signature
 }
 
 func (b *ChangeBlock) Size() int {
@@ -442,7 +432,7 @@ func (b *ChangeBlock) ID() byte {
 }
 
 func (b *ChangeBlock) Valid() bool {
-	return b.Common.Work.Valid(b.PreviousHash)
+	return b.Work.Valid(b.PreviousHash)
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -470,7 +460,7 @@ func (b *StateBlock) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	commonBytes, err := b.Common.MarshalBinary()
+	commonBytes, err := marshalCommon(b.Signature, b.Work, binary.BigEndian)
 	if err != nil {
 		return nil, err
 	}
@@ -515,12 +505,12 @@ func (b *StateBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	return b.Common.UnmarshalBinary(commonBytes)
+	return unmarshalCommon(commonBytes, binary.LittleEndian, &b.Signature, &b.Work)
 }
 
 func (b *StateBlock) Hash() Hash {
-	var preamble [HashSize]byte
-	preamble[len(preamble)-1] = 0x6
+	var preamble [preambleSize]byte
+	preamble[len(preamble)-1] = idBlockState
 	return hashBytes(preamble[:], b.Address[:], b.PreviousHash[:], b.Representative[:], b.Balance.Bytes(binary.BigEndian), b.Link[:])
 }
 
@@ -530,10 +520,6 @@ func (b *StateBlock) Root() Hash {
 	}
 
 	return b.Link
-}
-
-func (b *StateBlock) Signature() Signature {
-	return b.Common.Signature
 }
 
 func (b *StateBlock) Size() int {
@@ -546,8 +532,8 @@ func (b *StateBlock) ID() byte {
 
 func (b *StateBlock) Valid() bool {
 	if !b.PreviousHash.IsZero() {
-		return b.Common.Work.Valid(b.PreviousHash)
+		return b.Work.Valid(b.PreviousHash)
 	}
 
-	return b.Common.Work.Valid(Hash(b.Address))
+	return b.Work.Valid(Hash(b.Address))
 }
