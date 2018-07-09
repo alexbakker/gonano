@@ -297,9 +297,9 @@ other block types.
 
 __NOTE:__ For this block type, the work value is encoded in big endian.
 
-The hash of this block is calculated by concatenating [Account public key,
-Previous block hash, Representative public key, Balance, Link] and hashing the
-result with BLAKE2b.
+The hash of this block is calculated by concatenating [32 byte preamble (value:
+0x06), Account public key, Previous block hash, Representative public key,
+Balance, Link] and hashing the result with BLAKE2b.
 
 ### Work
 
