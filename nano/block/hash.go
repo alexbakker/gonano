@@ -23,7 +23,7 @@ func (h Hash) IsZero() bool {
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
-func (h Hash) MarshalText() (text []byte, err error) {
+func (h Hash) MarshalText() ([]byte, error) {
 	return []byte(h.String()), nil
 }
 

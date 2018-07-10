@@ -9,6 +9,7 @@ import (
 
 	"github.com/alexbakker/gonano/cmd/nano-node/config"
 	"github.com/alexbakker/gonano/nano/node"
+	"github.com/alexbakker/gonano/nano/node/proto"
 	"github.com/alexbakker/gonano/nano/store"
 	"github.com/alexbakker/gonano/nano/store/genesis"
 	"github.com/spf13/cobra"
@@ -28,6 +29,7 @@ var (
 		Peers: []string{
 			"rai.raiblocks.net:7075",
 		},
+		Network: proto.NetworkLive,
 	}
 
 	logger = log.New(os.Stdout, "", log.Ldate|log.Lmicroseconds)
@@ -68,13 +70,16 @@ func initConfig() {
 func startNode(cmd *cobra.Command, args []string) {
 	startPprof()
 
-	ledgerOpts := store.LedgerOptions{
-		GenesisBlock:   genesis.LiveBlock,
-		GenesisBalance: genesis.LiveBalance,
+	gen, err := genesis.Get(cfg.Network)
+	if err != nil {
+		logger.Fatalf("error obtaining genesis info: %s", err)
 	}
+	ledgerOpts := store.LedgerOptions{Genesis: gen}
+
 	nodeOpts := node.DefaultOptions
 	nodeOpts.Peers = cfg.Peers
 	nodeOpts.Address = cfg.Addr
+	nodeOpts.Network = cfg.Network
 
 	logger.Printf("opening badger database at %s", man.Dir())
 	db, err := store.NewBadgerStore(path.Join(man.Dir(), "db"))
@@ -95,7 +100,7 @@ func startNode(cmd *cobra.Command, args []string) {
 		logger.Fatalf("error initializing node: %s", err)
 	}
 	go func() {
-		logger.Printf("starting node")
+		logger.Printf("starting node (network: %s)", nodeOpts.Network)
 		if err := nanode.Run(); err != nil {
 			logger.Fatalf("error starting node: %s", err)
 		}

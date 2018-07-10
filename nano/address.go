@@ -97,7 +97,7 @@ func (a Address) Verify(data []byte, signature []byte) bool {
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
-func (a Address) MarshalText() (text []byte, err error) {
+func (a Address) MarshalText() ([]byte, error) {
 	return []byte(a.String()), nil
 }
 

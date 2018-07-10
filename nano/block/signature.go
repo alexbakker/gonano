@@ -14,7 +14,7 @@ const (
 type Signature [SignatureSize]byte
 
 // MarshalText implements the encoding.TextMarshaler interface.
-func (s Signature) MarshalText() (text []byte, err error) {
+func (s Signature) MarshalText() ([]byte, error) {
 	return []byte(s.String()), nil
 }
 

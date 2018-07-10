@@ -2,7 +2,6 @@ package node
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"math"
 	"net"
@@ -27,7 +26,7 @@ type Syncer interface {
 	ReadNext(r io.Reader) (done bool, err error)
 	// WriteNext writes the next packet to the given reader. If no packets need
 	// to be sent, 'done' is set to true.
-	WriteNext(w io.Writer) (done bool, err error)
+	WriteNext(p *proto.Proto, w io.Writer) (done bool, err error)
 }
 
 type (
@@ -79,7 +78,7 @@ func NewBulkPullBlocksSyncer(cb BulkPullBlocksSyncerFunc) *BulkPullBlocksSyncer 
 	}
 }
 
-func Sync(syncer Syncer, peer *Peer) error {
+func Sync(syncer Syncer, p *proto.Proto, peer *Peer) error {
 	conn, err := initSync(peer)
 	if err != nil {
 		return err
@@ -106,7 +105,7 @@ func Sync(syncer Syncer, peer *Peer) error {
 			}
 
 			// allow the syncer to send some data if it needs to
-			done, err := syncer.WriteNext(conn)
+			done, err := syncer.WriteNext(p, conn)
 			if err != nil {
 				errs <- err
 				return
@@ -197,14 +196,14 @@ func (s *FrontierSyncer) ReadNext(r io.Reader) (bool, error) {
 }
 
 // WriteNext implements the Syncer interface.
-func (s *FrontierSyncer) WriteNext(w io.Writer) (done bool, err error) {
+func (s *FrontierSyncer) WriteNext(p *proto.Proto, w io.Writer) (done bool, err error) {
 	packet := proto.FrontierReqPacket{
 		StartAddress: nano.Address{},
 		Age:          math.MaxUint32,
 		Count:        math.MaxUint32,
 	}
 
-	return true, writePacket(w, &packet)
+	return true, writePacket(w, p, &packet)
 }
 
 // Flush implements the Syncer interface.
@@ -236,7 +235,7 @@ func (s *BulkPullSyncer) ReadNext(r io.Reader) (bool, error) {
 }
 
 // WriteNext implements the Syncer interface.
-func (s *BulkPullSyncer) WriteNext(w io.Writer) (done bool, err error) {
+func (s *BulkPullSyncer) WriteNext(p *proto.Proto, w io.Writer) (done bool, err error) {
 	if s.writeIndex < len(s.addrs) {
 		// request the chain of the next frontier
 		packet := proto.BulkPullPacket{
@@ -244,7 +243,7 @@ func (s *BulkPullSyncer) WriteNext(w io.Writer) (done bool, err error) {
 		}
 
 		s.writeIndex++
-		return false, writePacket(w, &packet)
+		return false, writePacket(w, p, &packet)
 	}
 
 	return true, nil
@@ -278,7 +277,7 @@ func (s *BulkPullBlocksSyncer) ReadNext(r io.Reader) (bool, error) {
 }
 
 // WriteNext implements the Syncer interface.
-func (s *BulkPullBlocksSyncer) WriteNext(w io.Writer) (done bool, err error) {
+func (s *BulkPullBlocksSyncer) WriteNext(p *proto.Proto, w io.Writer) (done bool, err error) {
 	packet := proto.BulkPullBlocksPacket{
 		Mode:  s.mode,
 		Count: math.MaxUint32,
@@ -290,7 +289,7 @@ func (s *BulkPullBlocksSyncer) WriteNext(w io.Writer) (done bool, err error) {
 		packet.Max[i] = math.MaxUint8
 	}
 
-	return true, writePacket(w, &packet)
+	return true, writePacket(w, p, &packet)
 }
 
 // Flush implements the Syncer interface.
@@ -315,9 +314,9 @@ func initSync(peer *Peer) (*net.TCPConn, error) {
 	return conn, nil
 }
 
-func writePacket(w io.Writer, packet proto.Packet) error {
+func writePacket(w io.Writer, p *proto.Proto, packet proto.Packet) error {
 	// todo: get rid of this proto.New mess
-	packetBytes, err := proto.New(proto.NetworkLive).MarshalPacket(packet)
+	packetBytes, err := p.MarshalPacket(packet)
 	if err != nil {
 		return err
 	}
@@ -342,13 +341,6 @@ func readBlock(r io.Reader) (block.Block, error) {
 		return nil, err
 	}
 	if err := blk.UnmarshalBinary(buf); err != nil {
-		return nil, err
-	}
-
-	// skip blocks with invalid work
-	// todo: properly handle invalid blocks
-	if !blk.Valid() {
-		fmt.Printf("bad work for block: %s\n", blk.Hash())
 		return nil, err
 	}
 

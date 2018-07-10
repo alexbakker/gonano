@@ -10,29 +10,30 @@ import (
 )
 
 const (
-	WorkSize      = 8
-	WorkThreshold = uint64(0xffffffc000000000)
+	WorkSize = 8
 )
 
 type Work uint64
 
 type Worker struct {
-	root *Hash
-	work Work
-	hash hash.Hash
+	Threshold uint64
+	root      *Hash
+	work      Work
+	hash      hash.Hash
 }
 
-func (w Work) Valid(root Hash) bool {
-	return NewWorker(w, root).Valid()
+func (w Work) Valid(root Hash, threshold uint64) bool {
+	return NewWorker(w, root, threshold).Valid()
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
-func (w Work) MarshalText() (text []byte, err error) {
+func (w Work) MarshalText() ([]byte, error) {
 	return []byte(w.String()), nil
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
 func (w *Work) UnmarshalText(text []byte) error {
+	// todo: fix this, this can't be right
 	size := hex.DecodedLen(len(text))
 	if size != WorkSize {
 		return fmt.Errorf("bad work size: %d", size)
@@ -54,16 +55,17 @@ func (w Work) String() string {
 	return hex.EncodeToString(bytes[:])
 }
 
-func NewWorker(work Work, root Hash) *Worker {
+func NewWorker(work Work, root Hash, threshold uint64) *Worker {
 	hash, err := blake2b.New(WorkSize, nil)
 	if err != nil {
 		panic(err)
 	}
 
 	return &Worker{
-		root: &root,
-		work: work,
-		hash: hash,
+		Threshold: threshold,
+		root:      &root,
+		work:      work,
+		hash:      hash,
 	}
 }
 
@@ -77,7 +79,7 @@ func (w *Worker) Valid() bool {
 
 	sum := w.hash.Sum(nil)
 	value := binary.LittleEndian.Uint64(sum)
-	return value >= WorkThreshold
+	return value >= w.Threshold
 }
 
 func (w *Worker) Generate() Work {

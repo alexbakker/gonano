@@ -6,6 +6,7 @@ import (
 
 	"github.com/alexbakker/gonano/nano"
 	"github.com/alexbakker/gonano/nano/block"
+	"github.com/alexbakker/gonano/nano/store/genesis"
 )
 
 var (
@@ -24,15 +25,14 @@ type Ledger struct {
 }
 
 type LedgerOptions struct {
-	GenesisBlock   *block.OpenBlock
-	GenesisBalance nano.Balance
+	Genesis genesis.Genesis
 }
 
 func NewLedger(store Store, opts LedgerOptions) (*Ledger, error) {
 	ledger := Ledger{opts: opts, db: store}
 
 	// initialize the store with the genesis block if needed
-	if err := ledger.setGenesis(opts.GenesisBlock, opts.GenesisBalance); err != nil {
+	if err := ledger.setGenesis(&opts.Genesis.Block, opts.Genesis.Balance); err != nil {
 		return nil, err
 	}
 
@@ -43,8 +43,8 @@ func (l *Ledger) setGenesis(blk *block.OpenBlock, balance nano.Balance) error {
 	hash := blk.Hash()
 
 	// make sure the work value is valid
-	if !blk.Valid() {
-		fmt.Printf("bad work for genesis block")
+	if !blk.Valid(l.opts.Genesis.WorkThreshold) {
+		return errors.New("bad work for genesis block")
 	}
 
 	// make sure the signature of this block is valid
@@ -347,7 +347,7 @@ func (l *Ledger) addBlock(txn StoreTxn, blk block.Block) error {
 	hash := blk.Hash()
 
 	// make sure the work value is valid
-	if !blk.Valid() {
+	if !blk.Valid(l.opts.Genesis.WorkThreshold) {
 		return ErrBadWork
 	}
 
@@ -366,7 +366,7 @@ func (l *Ledger) addBlock(txn StoreTxn, blk block.Block) error {
 		return err
 	}
 	if !found {
-		switch blk.(type) {
+		switch b := blk.(type) {
 		case *block.OpenBlock:
 			return ErrMissingSource
 		case *block.SendBlock:
@@ -375,8 +375,14 @@ func (l *Ledger) addBlock(txn StoreTxn, blk block.Block) error {
 			return ErrMissingPrevious
 		case *block.ChangeBlock:
 			return ErrMissingPrevious
+		case *block.StateBlock:
+			if b.IsOpen() {
+				return ErrMissingSource
+			} else {
+				return ErrMissingPrevious
+			}
 		default:
-			panic("bad block type")
+			return block.ErrBadBlockType
 		}
 	}
 
@@ -390,7 +396,7 @@ func (l *Ledger) addBlock(txn StoreTxn, blk block.Block) error {
 	case *block.ChangeBlock:
 		err = l.addChangeBlock(txn, b)
 	default:
-		panic("bad block type")
+		return block.ErrBadBlockType
 	}
 
 	if err != nil {
@@ -456,8 +462,10 @@ func (l *Ledger) processBlock(txn StoreTxn, blk block.Block) error {
 			source = b.SourceHash
 		case *block.OpenBlock:
 			source = b.SourceHash
+		case *block.StateBlock:
+			source = b.Link
 		default:
-			panic("unexpected block type")
+			return errors.New("unexpected block type")
 		}
 
 		// add to unchecked list

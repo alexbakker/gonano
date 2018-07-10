@@ -156,7 +156,7 @@ func bigPow(base int64, exp int64) *big.Int {
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
-func (b Balance) MarshalText() (text []byte, err error) {
+func (b Balance) MarshalText() ([]byte, error) {
 	return []byte(b.String()), nil
 }
 

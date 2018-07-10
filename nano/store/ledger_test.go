@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/alexbakker/gonano/nano/block"
+	"github.com/alexbakker/gonano/nano/node/proto"
 	"github.com/alexbakker/gonano/nano/store/genesis"
 )
 
@@ -27,10 +28,12 @@ func initTestLedger(t testing.TB) *testLedger {
 		t.Fatal(err)
 	}
 
-	ledger, err := NewLedger(store, LedgerOptions{
-		GenesisBlock:   genesis.LiveBlock,
-		GenesisBalance: genesis.LiveBalance,
-	})
+	gen, err := genesis.Get(proto.NetworkLive)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ledger, err := NewLedger(store, LedgerOptions{Genesis: gen})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -189,11 +189,11 @@ func (n *Node) syncFontiers() error {
 
 		fmt.Printf("requesting frontiers from %s\n", peer.Addr)
 
-		/*syncer := NewFrontierSyncer(n.processFrontier)
-		if err = Sync(syncer, peer); err == nil {
+		syncer := NewFrontierSyncer(n.processFrontier)
+		if err = Sync(syncer, n.proto, peer); err == nil {
 			fmt.Printf("received %d out of sync frontiers from %s\n", len(n.frontiers), peer.Addr)
 			syncer := NewBulkPullSyncer(n.processFrontierBlocks, n.frontiers)
-			if err := Sync(syncer, peer); err == nil {
+			if err := Sync(syncer, n.proto, peer); err == nil {
 				if count, err := n.ledger.CountBlocks(); err == nil {
 					fmt.Printf("block count: %d\n", count)
 				}
@@ -201,7 +201,7 @@ func (n *Node) syncFontiers() error {
 				fmt.Printf("sync error: %s\n", err)
 			}
 			break
-		}*/
+		}
 
 		// retry sooner if an error occurred
 		if err == nil {
@@ -228,6 +228,8 @@ func (n *Node) processFrontier(frontier *block.Frontier) {
 		fmt.Printf("error querying ledger: %s\n", err)
 		return
 	}*/
+
+	fmt.Printf("frontier: %s\n", frontier.Address)
 
 	hash, ok := n.frontiers[frontier.Address]
 	if ok && hash == frontier.Hash {

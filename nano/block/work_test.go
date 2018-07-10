@@ -7,12 +7,14 @@ import (
 
 func TestBlockWork(t *testing.T) {
 	work := Work(0xc2c306caf73b836f)
-	hash := mustDecodeHash(t, "6529C605D4016F486B60861C49DDAD128D77642E748B3FE13BE411F00BA0918B")
-	if !work.Valid(hash) {
+	threshold := uint64(0xffffffc000000000)
+
+	hash := mustDecodeHash(t, "6529c605d4016f486b60861c49ddad128d77642e748b3fe13be411f00ba0918b")
+	if !work.Valid(hash, threshold) {
 		t.Errorf("work not valid")
 	}
 
-	worker := NewWorker(work, hash)
+	worker := NewWorker(work, hash, threshold)
 	if worker.Generate() != work {
 		t.Fatal("work not equal")
 	}

@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"fmt"
 	"net"
 )
 
@@ -10,6 +11,14 @@ const (
 	NetworkTest = 'A'
 	NetworkBeta = 'B'
 	NetworkLive = 'C'
+)
+
+var (
+	networkNames = map[Network]string{
+		NetworkTest: "test",
+		NetworkBeta: "beta",
+		NetworkLive: "live",
+	}
 )
 
 type Proto struct {
@@ -122,4 +131,32 @@ func (p *Proto) MarshalPacket(packet Packet) ([]byte, error) {
 	}
 
 	return append(headerBytes, packetBytes...), nil
+}
+
+// MarshalText implements the encoding.TextMarshaler interface.
+func (n Network) MarshalText() ([]byte, error) {
+	return []byte(n.String()), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+func (n *Network) UnmarshalText(text []byte) error {
+	s := string(text)
+	for k, v := range networkNames {
+		if v == s {
+			*n = k
+			return nil
+		}
+	}
+
+	return fmt.Errorf("unknown network: %s", s)
+}
+
+// String implements the fmt.Stringer interface.
+func (n Network) String() string {
+	s, ok := networkNames[n]
+	if !ok {
+		return "unknown"
+	}
+
+	return s
 }

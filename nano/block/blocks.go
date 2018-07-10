@@ -52,7 +52,7 @@ type Block interface {
 	Root() Hash
 	Size() int
 	ID() byte
-	Valid() bool
+	Valid(threshold uint64) bool
 }
 
 type OpenBlock struct {
@@ -224,8 +224,8 @@ func (b *OpenBlock) ID() byte {
 	return idBlockOpen
 }
 
-func (b *OpenBlock) Valid() bool {
-	return b.Work.Valid(Hash(b.Address))
+func (b *OpenBlock) Valid(threshold uint64) bool {
+	return b.Work.Valid(Hash(b.Address), threshold)
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -301,8 +301,8 @@ func (b *SendBlock) ID() byte {
 	return idBlockSend
 }
 
-func (b *SendBlock) Valid() bool {
-	return b.Work.Valid(b.PreviousHash)
+func (b *SendBlock) Valid(threshold uint64) bool {
+	return b.Work.Valid(b.PreviousHash, threshold)
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -366,8 +366,8 @@ func (b *ReceiveBlock) ID() byte {
 	return idBlockReceive
 }
 
-func (b *ReceiveBlock) Valid() bool {
-	return b.Work.Valid(b.PreviousHash)
+func (b *ReceiveBlock) Valid(threshold uint64) bool {
+	return b.Work.Valid(b.PreviousHash, threshold)
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -431,8 +431,8 @@ func (b *ChangeBlock) ID() byte {
 	return idBlockChange
 }
 
-func (b *ChangeBlock) Valid() bool {
-	return b.Work.Valid(b.PreviousHash)
+func (b *ChangeBlock) Valid(threshold uint64) bool {
+	return b.Work.Valid(b.PreviousHash, threshold)
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
@@ -505,7 +505,7 @@ func (b *StateBlock) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	return unmarshalCommon(commonBytes, binary.LittleEndian, &b.Signature, &b.Work)
+	return unmarshalCommon(commonBytes, binary.BigEndian, &b.Signature, &b.Work)
 }
 
 func (b *StateBlock) Hash() Hash {
@@ -515,7 +515,7 @@ func (b *StateBlock) Hash() Hash {
 }
 
 func (b *StateBlock) Root() Hash {
-	if !b.PreviousHash.IsZero() {
+	if !b.IsOpen() {
 		return b.PreviousHash
 	}
 
@@ -530,10 +530,14 @@ func (b *StateBlock) ID() byte {
 	return idBlockState
 }
 
-func (b *StateBlock) Valid() bool {
-	if !b.PreviousHash.IsZero() {
-		return b.Work.Valid(b.PreviousHash)
+func (b *StateBlock) Valid(threshold uint64) bool {
+	if !b.IsOpen() {
+		return b.Work.Valid(b.PreviousHash, threshold)
 	}
 
-	return b.Work.Valid(Hash(b.Address))
+	return b.Work.Valid(Hash(b.Address), threshold)
+}
+
+func (b *StateBlock) IsOpen() bool {
+	return b.PreviousHash.IsZero()
 }
