@@ -343,6 +343,149 @@ func (l *Ledger) addChangeBlock(txn StoreTxn, blk *block.ChangeBlock) error {
 	return txn.AddBlock(blk)
 }
 
+func (l *Ledger) addStateBlock(txn StoreTxn, blk *block.StateBlock) error {
+	hash := blk.Hash()
+
+	// make sure the signature of this block is valid
+	if !blk.Address.Verify(hash[:], blk.Signature[:]) {
+		return errors.New("bad block signature")
+	}
+
+	// obtain account information if possible
+	info, err := txn.GetAddress(blk.Address)
+	if err != nil {
+		// todo: check for key not found error
+		if blk.IsOpen() {
+			// account doesn't exist
+			// obtain the pending transaction info
+			pending, err := txn.GetPending(blk.Address, blk.Link)
+			if err != nil {
+				return ErrMissingSource
+			}
+
+			// add address info
+			info := AddressInfo{
+				HeadBlock: hash,
+				RepBlock:  hash,
+				OpenBlock: hash,
+				Balance:   pending.Amount,
+			}
+			if err := txn.AddAddress(blk.Address, &info); err != nil {
+				return err
+			}
+
+			// delete the pending transaction
+			if err := txn.DeletePending(blk.Address, blk.Link); err != nil {
+				return err
+			}
+
+			// update representative voting weight
+			if err := txn.AddRepresentation(blk.Representative, pending.Amount); err != nil {
+				return err
+			}
+
+			// add a frontier for this address
+			frontier := block.Frontier{
+				Address: blk.Address,
+				Hash:    hash,
+			}
+			if err := txn.AddFrontier(&frontier); err != nil {
+				return err
+			}
+
+			// finally, add the block
+			return txn.AddBlock(blk)
+		}
+		return err
+	}
+
+	// make sure the hash of the previous block is a frontier
+	frontier, err := txn.GetFrontier(blk.PreviousHash)
+	if err != nil {
+		return ErrFork
+	}
+
+	// obtain the representative
+	rep, err := l.getRepresentative(txn, blk.Address)
+	if err != nil {
+		return err
+	}
+
+	if blk.Link.IsZero() {
+		if !blk.Balance.Equal(info.Balance) {
+			fmt.Printf("%s - %s\n", blk.Balance, info.Balance)
+			return errors.New("balance change not allowed in change block")
+		}
+		// update representative voting weight
+		if err := txn.SubRepresentation(rep, info.Balance); err != nil {
+			return err
+		}
+		if err := txn.AddRepresentation(blk.Representative, info.Balance); err != nil {
+			return err
+		}
+		info.RepBlock = hash
+	} else if !blk.IsOpen() {
+		switch blk.Balance.Compare(info.Balance) {
+		case nano.BalanceCompBigger:
+			// receive
+			// obtain the pending transaction info
+			pending, err := txn.GetPending(blk.Address, blk.Link)
+			if err != nil {
+				return ErrMissingSource
+			}
+			// update representative voting weight
+			if err := txn.AddRepresentation(rep, pending.Amount); err != nil {
+				return err
+			}
+			// delete the pending transaction
+			if err := txn.DeletePending(blk.Address, blk.Link); err != nil {
+				return err
+			}
+			info.Balance = info.Balance.Add(pending.Amount)
+		case nano.BalanceCompSmaller:
+			// send
+			pending := Pending{
+				Address: frontier.Address,
+				Amount:  info.Balance.Sub(blk.Balance),
+			}
+			// update representative voting weight
+			if err := txn.SubRepresentation(rep, pending.Amount); err != nil {
+				return err
+			}
+			// add this to the pending transaction list
+			if err := txn.AddPending(nano.Address(blk.Link), hash, &pending); err != nil {
+				return err
+			}
+			info.Balance = info.Balance.Sub(pending.Amount)
+		case nano.BalanceCompEqual:
+			return errors.New("zero spend not allowed")
+		}
+	}
+
+	// update the address info
+	info.HeadBlock = hash
+	if err := txn.UpdateAddress(blk.Address, info); err != nil {
+		return err
+	}
+
+	// update the frontier of this account
+	if !blk.IsOpen() {
+		if err := txn.DeleteFrontier(frontier.Hash); err != nil {
+			return err
+		}
+	}
+	frontier = &block.Frontier{
+		Address: blk.Address,
+		Hash:    hash,
+	}
+	if err := txn.AddFrontier(frontier); err != nil {
+		return err
+	}
+
+	// finally, add the block
+	return txn.AddBlock(blk)
+}
+
 func (l *Ledger) addBlock(txn StoreTxn, blk block.Block) error {
 	hash := blk.Hash()
 
@@ -378,9 +521,8 @@ func (l *Ledger) addBlock(txn StoreTxn, blk block.Block) error {
 		case *block.StateBlock:
 			if b.IsOpen() {
 				return ErrMissingSource
-			} else {
-				return ErrMissingPrevious
 			}
+			return ErrMissingPrevious
 		default:
 			return block.ErrBadBlockType
 		}
@@ -395,6 +537,8 @@ func (l *Ledger) addBlock(txn StoreTxn, blk block.Block) error {
 		err = l.addReceiveBlock(txn, b)
 	case *block.ChangeBlock:
 		err = l.addChangeBlock(txn, b)
+	case *block.StateBlock:
+		err = l.addStateBlock(txn, b)
 	default:
 		return block.ErrBadBlockType
 	}
@@ -604,6 +748,8 @@ func (l *Ledger) getRepresentative(txn StoreTxn, address nano.Address) (nano.Add
 	case *block.OpenBlock:
 		return b.Representative, nil
 	case *block.ChangeBlock:
+		return b.Representative, nil
+	case *block.StateBlock:
 		return b.Representative, nil
 	default:
 		return nano.Address{}, errors.New("bad representative block type")

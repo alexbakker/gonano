@@ -86,13 +86,13 @@ type ChangeBlock struct {
 }
 
 type StateBlock struct {
-	Address        nano.Address   `json:"address"`
-	PreviousHash   Hash           `json:"previous"`
-	Representative nano.Address   `json:"representative"`
-	Balance        nano.Balance   `json:"balance"`
-	Link           [HashSize]byte `json:"link"`
-	Signature      Signature      `json:"signature"`
-	Work           Work           `json:"work"`
+	Address        nano.Address `json:"address"`
+	PreviousHash   Hash         `json:"previous"`
+	Representative nano.Address `json:"representative"`
+	Balance        nano.Balance `json:"balance"`
+	Link           Hash         `json:"link"`
+	Signature      Signature    `json:"signature"`
+	Work           Work         `json:"work"`
 }
 
 func New(blockType byte) (Block, error) {
