@@ -37,9 +37,7 @@ type BadgerStoreTxn struct {
 
 // NewBadgerStore initializes/opens a badger database in the given directory.
 func NewBadgerStore(dir string) (*BadgerStore, error) {
-	opts := badger.DefaultOptions
-	opts.Dir = dir
-	opts.ValueDir = dir
+	opts := badger.DefaultOptions(dir)
 	opts.ValueLogLoadingMode = badgerOpts.FileIO
 
 	if _, err := os.Stat(dir); err != nil {
@@ -64,15 +62,6 @@ func (s *BadgerStore) Close() error {
 	return s.db.Close()
 }
 
-// Purge purges any old/deleted keys from the database.
-func (s *BadgerStore) Purge() error {
-	if err := s.db.PurgeOlderVersions(); err != nil {
-		return err
-	}
-
-	return s.db.RunValueLogGC(0.5)
-}
-
 func (s *BadgerStore) View(fn func(txn StoreTxn) error) error {
 	return s.db.View(func(txn *badger.Txn) error {
 		return fn(&BadgerStoreTxn{txn: txn, db: s.db})
@@ -87,7 +76,7 @@ func (s *BadgerStore) Update(fn func(txn StoreTxn) error) error {
 		return err
 	}
 
-	return t.txn.Commit(nil)
+	return t.txn.Commit()
 }
 
 func (t *BadgerStoreTxn) set(key []byte, val []byte) error {
@@ -100,7 +89,7 @@ func (t *BadgerStoreTxn) set(key []byte, val []byte) error {
 }
 
 func (t *BadgerStoreTxn) setWithMeta(key []byte, val []byte, meta byte) error {
-	if err := t.txn.SetWithMeta(key, val, meta); err != nil {
+	if err := t.txn.SetEntry(badger.NewEntry(key, val).WithMeta(meta)); err != nil {
 		return err
 	}
 
@@ -135,7 +124,7 @@ func (t *BadgerStoreTxn) Empty() (bool, error) {
 
 func (t *BadgerStoreTxn) Flush() error {
 	if t.ops >= badgerMaxOps {
-		if err := t.txn.Commit(nil); err != nil {
+		if err := t.txn.Commit(); err != nil {
 			return err
 		}
 
@@ -165,7 +154,7 @@ func (t *BadgerStoreTxn) AddBlock(blk block.Block) error {
 		return ErrBlockExists
 	}
 
-	return t.txn.SetWithMeta(key[:], blockBytes, blk.ID())
+	return t.txn.SetEntry(badger.NewEntry(key[:], blockBytes).WithMeta(blk.ID()))
 }
 
 // GetBlock retrieves the block with the given hash from the database.
@@ -180,7 +169,7 @@ func (t *BadgerStoreTxn) GetBlock(hash block.Hash) (block.Block, error) {
 	}
 
 	blockType := item.UserMeta()
-	blockBytes, err := item.Value()
+	blockBytes, err := item.ValueCopy(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +211,7 @@ func (t *BadgerStoreTxn) AddUncheckedBlock(parentHash block.Hash, blk block.Bloc
 		return ErrBlockExists
 	}
 
-	return t.txn.SetWithMeta(key[:], blockBytes, blk.ID())
+	return t.txn.SetEntry(badger.NewEntry(key[:], blockBytes).WithMeta(blk.ID()))
 }
 
 // GetUncheckedBlock retrieves the block with the given hash from the database.
@@ -237,7 +226,7 @@ func (t *BadgerStoreTxn) GetUncheckedBlock(parentHash block.Hash, kind Unchecked
 	}
 
 	blockType := item.UserMeta()
-	blockBytes, err := item.Value()
+	blockBytes, err := item.ValueCopy(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +275,7 @@ func (t *BadgerStoreTxn) walkUncheckedBlocks(kind UncheckedKind, visit Unchecked
 		item := it.Item()
 
 		blockType := item.UserMeta()
-		blockBytes, err := item.Value()
+		blockBytes, err := item.ValueCopy(nil)
 		if err != nil {
 			return err
 		}
@@ -401,7 +390,7 @@ func (t *BadgerStoreTxn) GetAddress(address nano.Address) (*AddressInfo, error) 
 		return nil, err
 	}
 
-	infoBytes, err := item.Value()
+	infoBytes, err := item.ValueCopy(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -474,7 +463,7 @@ func (t *BadgerStoreTxn) GetFrontier(hash block.Hash) (*block.Frontier, error) {
 		return nil, err
 	}
 
-	address, err := item.Value()
+	address, err := item.ValueCopy(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -492,7 +481,7 @@ func (t *BadgerStoreTxn) GetFrontiers() ([]*block.Frontier, error) {
 	prefix := [...]byte{idPrefixFrontier}
 	for it.Seek(prefix[:]); it.ValidForPrefix(prefix[:]); it.Next() {
 		item := it.Item()
-		address, err := item.Value()
+		address, err := item.ValueCopy(nil)
 		if err != nil {
 			return nil, err
 		}
@@ -562,7 +551,7 @@ func (t *BadgerStoreTxn) GetPending(destination nano.Address, hash block.Hash) (
 		return nil, err
 	}
 
-	pendingBytes, err := item.Value()
+	pendingBytes, err := item.ValueCopy(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -627,7 +616,7 @@ func (t *BadgerStoreTxn) GetRepresentation(address nano.Address) (nano.Balance, 
 		return nano.ZeroBalance, err
 	}
 
-	amountBytes, err := item.Value()
+	amountBytes, err := item.ValueCopy(nil)
 	if err != nil {
 		return nano.ZeroBalance, err
 	}

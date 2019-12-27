@@ -26,7 +26,6 @@ type UncheckedBlockWalkFunc func(block block.Block, kind UncheckedKind) error
 // Store is an interface that all Nano block lattice stores need to implement.
 type Store interface {
 	Close() error
-	Purge() error
 	View(fn func(txn StoreTxn) error) error
 	Update(fn func(txn StoreTxn) error) error
 }

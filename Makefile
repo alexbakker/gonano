@@ -12,7 +12,7 @@ nano-wallet: prep
 	go build -o build/bin/nano-wallet github.com/alexbakker/gonano/cmd/nano-wallet
 
 test:
-	GOCACHE=off go test -v $(shell go list ./... | grep -v vendor)
+	go test -v $(shell go list ./... | grep -v vendor)
 
 prep:
 	mkdir -p build/bin
