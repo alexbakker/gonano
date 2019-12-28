@@ -14,10 +14,14 @@ import (
 const (
 	// AddressLen represents the string length of a Nano address.
 	AddressLen = 64
+	// AddressLenOld represents the string length of an old Nano address.
+	AddressLenOld = 65
 	// AddressSize represents the binary size of a Nano address (a public key).
 	AddressSize = ed25519.PublicKeySize
 	// AddressPrefix is the prefix of Nano addresses.
-	AddressPrefix = "xrb_"
+	AddressPrefix = "nano_"
+	// AddressPrefixOld is the old prefix of Nano addresses.
+	AddressPrefixOld = "xrb_"
 
 	// AddressEncodingAlphabet is Nano's custom alphabet for base32 encoding
 	AddressEncodingAlphabet = "13456789abcdefghijkmnopqrstuwxyz"
@@ -39,20 +43,24 @@ type Address [AddressSize]byte
 
 // ParseAddress parses the given Nano address string to a public key.
 func ParseAddress(s string) (Address, error) {
-	if len(s) != AddressLen {
+	if len(s) != AddressLen && len(s) != AddressLenOld {
 		return Address{}, ErrAddressLen
 	}
 
-	if !strings.HasPrefix(s, AddressPrefix) {
+	if strings.HasPrefix(s, AddressPrefix) {
+		s = s[5:]
+	} else if strings.HasPrefix(s, AddressPrefixOld) {
+		s = s[4:]
+	} else {
 		return Address{}, ErrAddressPrefix
 	}
 
-	key, err := AddressEncoding.DecodeString("1111" + s[4:56])
+	key, err := AddressEncoding.DecodeString("1111" + s[:52])
 	if err != nil {
 		return Address{}, ErrAddressEncoding
 	}
 
-	checksum, err := AddressEncoding.DecodeString(s[56:])
+	checksum, err := AddressEncoding.DecodeString(s[52:])
 	if err != nil {
 		return Address{}, ErrAddressEncoding
 	}
