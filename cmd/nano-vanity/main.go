@@ -76,7 +76,7 @@ func findAddress(prefix string, c chan *result) {
 		}
 
 		addr := wallet.NewAccount(key).Address()
-		if strings.HasPrefix(addr.String()[5:], prefix) {
+		if strings.HasPrefix(addr.String()[len(nano.AddressPrefix)+1:], prefix) {
 			c <- &result{seed, addr, i}
 		}
 	}
